@@ -114,3 +114,51 @@ test('coach notes react to freezes, restarts and volume', () => {
   assert.match(notes, /fillers/);
   assert.match(notes, /Project/);
 });
+
+import { skillScores, focusOfDay, weeklyReport, extractJson, avgConfidence, roundRates } from '../js/metrics.js';
+
+const round = (o) => ({ speakSec: 60, wpm: 150, freezes: 0, repetitions: 0, fillers: 0, ...o });
+const sess = (ts, o, mode = 'oneMin') => ({ ts, mode, rounds: [round(o)] });
+
+test('roundRates uses the larger of self-reported and detected restarts', () => {
+  const r = roundRates(round({ speakSec: 30, repetitions: 1, selfRestarts: 3, freezes: 2 }));
+  assert.equal(r.restartsPerMin, 6);
+  assert.equal(r.freezesPerMin, 4);
+});
+
+test('skillScores: null when untested, lower for more freezes', () => {
+  const empty = { sessions: [], naming: [], srs: {}, ddk: [], twisters: [], pen: [], pairs: [], zone: [], anxiety: [], exposure: {}, shadow: [] };
+  assert.equal(skillScores(empty)['Repair fluency'], null);
+  const good = skillScores({ ...empty, sessions: [sess(1, { freezes: 0 })] })['Repair fluency'];
+  const bad = skillScores({ ...empty, sessions: [sess(1, { freezes: 5, selfRestarts: 3 })] })['Repair fluency'];
+  assert.equal(good, 100);
+  assert.ok(bad < 10, `bad=${bad}`);
+  const nm = skillScores({ ...empty, naming: [{ avgMs: 1000, acc: 100 }] })['Lexical retrieval'];
+  assert.equal(nm, 100);
+});
+
+test('focusOfDay picks untested core skill first, then the weakest', () => {
+  assert.equal(focusOfDay({ 'Repair fluency': null }).skill, 'Repair fluency');
+  const all = { 'Repair fluency': 80, 'Lexical retrieval': 70, 'Volume & projection': 30, 'Articulation': 90, 'Pronunciation (sounds)': 60, 'Formulaic chunks': 50, 'Pace': null };
+  const f = focusOfDay(all);
+  assert.equal(f.skill, 'Volume & projection');
+  assert.match(f.link[0], /voice/);
+});
+
+test('weeklyReport splits this week and last week', () => {
+  const now = 100 * 86400000;
+  const s = [sess(now - 1000, { freezes: 2 }), sess(now - 8 * 86400000, { freezes: 4 }), sess(now - 30 * 86400000, {})];
+  const r = weeklyReport(s, now);
+  assert.equal(r.thisWeek.speeches, 1);
+  assert.equal(r.lastWeek.speeches, 1);
+  assert.equal(r.thisWeek.freezesPerMin, 2);
+  assert.equal(r.lastWeek.freezesPerMin, 4);
+});
+
+test('extractJson handles fences and chatter; avgConfidence ignores zeros', () => {
+  assert.deepEqual(extractJson('Sure!\n```json\n{"a":1}\n```'), { a: 1 });
+  assert.deepEqual(extractJson('here {"b":[1,2]} done'), { b: [1, 2] });
+  assert.equal(extractJson('no json'), null);
+  assert.equal(avgConfidence([0.9, 0, 0.7]), 80);
+  assert.equal(avgConfidence([]), null);
+});

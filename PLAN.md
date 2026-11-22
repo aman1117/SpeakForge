@@ -1,7 +1,7 @@
 # Your 6-Month Speaking Transformation Plan
 
 *Built 22 Nov 2026 for: fluent, clear, confident English (target: Instagram creator level, Theo-style delivery).*
-*Companion app: **SpeakForge** (this folder). Start it with `start.ps1`.*
+*Companion app: **SpeakForge**: https://aman1117.github.io/SpeakForge/ (phone or PC), or `start.ps1` on this PC.*
 
 ---
 
@@ -20,29 +20,33 @@ Researchers split speaking **fluency** into three separate skills (Skehan; Tavak
 - **The key insight:** Native speakers *also* lose words all the time. They just **don't restart**. They **bridge**: "the… what's it called… the thing you use to…", "basically…", "what I mean is…". This is called a **communication strategy** (circumlocution/paraphrase), and research (Dörnyei 1995 and later strategy-training studies) shows it **can be trained**.
 - **The fix (two parts):**
   1. **Faster retrieval:** rapid naming, category and synonym sprints, and spaced repetition of phrases (retrieval practice makes words faster to access).
-  2. **Better repair:** rescue phrases + Taboo (describing a word without saying it) + **never-restart drills**. The SpeakForge Speaking Arena shows a **BRIDGE card** the moment you go silent for 1.8 s.
+  2. **Better repair:** rescue phrases + Taboo (describing a word without saying it) + **never-restart drills**. The SpeakForge Speaking Arena shows a **BRIDGE card and a soft beep** the moment you go silent (1.2–3.5 s, your choice).
+  3. **Awareness:** press **SPACE** (or tap ↺) every time you catch yourself restarting. Self-monitoring is a core technique in fluency therapy: you can't fix what you don't notice.
+  4. **Personal word list:** after every speech, type the words you lost (or let the AI find them). They go into **My lost words** and come back in Rapid naming and the Phrase Bank until they're instant.
+  5. **Real conversation:** Question chain (5 spoken questions back-to-back) and the AI conversation partner train the same skills under real back-and-forth pressure.
 
 **The in-the-moment protocol: P.B.C.** (memorise this)
 > **P**ause (½ second, calm) → **B**ridge ("the thing that… / what I mean is…") → **C**ontinue the SAME sentence (describe, simplify, or skip the detail).
 > **Never rewind.** A described word sounds fluent. A restart sounds broken.
 
 ### Problem 2: Articulation
-Articulation is a **motor skill**: lips, tongue and jaw moving precisely and fast. Like any motor skill it improves with daily, specific, repeated drills (warm-up → slow exaggerated → normal → fast). Indian-English-specific sound contrasts to train: **V/W, TH, retroflex T/D → alveolar T/D, the American R, short vs long vowels, and stress-timed rhythm with reduced "uh" (schwa) syllables**.
+Articulation is a **motor skill**: lips, tongue and jaw moving precisely and fast. Like any motor skill it improves with daily, specific, repeated drills (warm-up → slow exaggerated → normal → fast). Indian-English-specific sound contrasts to train: **V/W, TH, retroflex T/D → alveolar T/D, the American R, short vs long vowels, and stress-timed rhythm with reduced "uh" (schwa) syllables**. SpeakForge orders minimal pairs by your **first language**, lets you compare **model vs you** back-to-back, and tracks a **clarity %** (how confidently the recogniser understood you) in every speech.
 
 ### Problem 3: Nervous to speak loudly in English
 (You wrote "my English is not that bad". I think you meant "not that good". Either way, the fear is about being *judged*, not about your real level.)
 This is **Foreign Language Anxiety** (Horwitz, Horwitz & Cope 1986): fear of negative evaluation + communication apprehension. It creates a loop: *nervous → quiet voice → sounds unsure → listener asks "sorry?" → more nervous*.
 The evidence-based fixes:
-- **Graded exposure:** repeated, gradually harder speaking situations (the Exposure Ladder in the app).
-- **Deliberate volume training:** projection is a physical skill; practise it alone first (Volume Zone).
-- **Physiological calming:** box breathing before speaking.
+- **Graded exposure:** repeated, gradually harder speaking situations (the Exposure Ladder + **real-world moment log** in the app). **Camera mode** adds the feeling of being watched, which is exactly what reels need.
+- **Deliberate volume training:** projection is a physical skill; practise it alone first (Volume Zone), then get **live "speak up" nudges** during every Arena speech.
+- **Physiological calming:** box breathing before speaking (the Arena's optional **calm-down ritual** does it with a self-talk line).
 - **Positive self-talk + measuring "before vs after" nervousness:** you'll see the "after" number drop, which proves speaking itself reduces fear.
 - **Low-stakes community:** Toastmasters (what Mona did every week).
 
 ### Problem 4: A system to get dramatically better in 4–6 months
-SpeakForge + this plan. ~35 min/day, tracked, with XP, streaks and measurable targets.
+SpeakForge + this plan. The **Today** mission adapts to your daily time (10/20/35/60 min), adds a Saturday benchmark and a Sunday real-world task, and shows a **focus of the day** (your weakest skill) plus a **weekly report**. Practise on your phone too, and set a daily reminder with `.\start.ps1 -Reminder 20:00`.
 
 ### Problem 5: "What skills does great speaking even need?" The 12 skills
+The **Skills** screen in the app shows your live 0–100 score for each of these, computed from your practice data.
 
 | # | Skill | What it is | How you train it |
 |---|---|---|---|
@@ -170,11 +174,10 @@ Short on time? **Minimum viable day (10 min):** warm-up + one 1-minute topic + P
 
 ## 5. Monthly benchmark + deep analysis
 
-1. In the Speaking Arena, choose **No-Restart challenge (2 min)** and type the custom topic **"Benchmark: introduce yourself and what you do"**. Talk for ~1 minute.
-2. Then, in the same recording, read the **R benchmark** passage aloud (also in Shadowing → "R benchmark passage"):
+1. In the Speaking Arena, choose **Weekly benchmark**. Introduce yourself and what you do; after 60 s the **R benchmark** passage appears. Read it aloud:
    > Her first word at work was learn. Thirty nerds were there, and the third person worked late. It hurt, but they learned a lot. Were they the first? It's certain. The girl who turned up first earned her first award, and her words were worth it.
-3. Journal → **download** the recording.
-4. Run:
+2. Journal shows your **first vs latest benchmark** side by side. **Download** the latest recording.
+3. Run:
    ```powershell
    cd SpeakForge
    python tools\analyze_me.py "$HOME\Downloads\speakforge-....webm"

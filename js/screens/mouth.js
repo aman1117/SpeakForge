@@ -1,6 +1,6 @@
 import { S, save, logActivity, $, esc, pick, shuffle, mic, ensureMic, sleep, meterHtml, setMeter } from '../core.js';
-import { Listener, speechSupported, say, loop, calibrate } from '../audio.js';
-import { similarity, missedWords, tokenize, countBursts, countWords, wordsPerMinute } from '../metrics.js';
+import { Listener, speechSupported, say, loop, calibrate, Recorder } from '../audio.js';
+import { similarity, missedWords, tokenize, countBursts, countWords, wordsPerMinute, L1_PRIORITY } from '../metrics.js';
 import { TONGUE_TWISTERS, MINIMAL_PAIRS, READING_PASSAGES } from '../content.js';
 
 const WARMUP = [
@@ -98,12 +98,14 @@ function twister(pane) {
     if (!(await ensureMic())) return;
     const l = new Listener();
     l.start();
+    const rec = new Recorder(mic.stream);
+    rec.start();
     const t0 = performance.now();
     $('#tres').innerHTML = '<br><p class="warnc"><b>Listening…</b> say it, then press Done.</p><div class="transcript" id="ttr"></div><br><button id="tdone">Done</button>';
     const iv = setInterval(() => { $('#ttr').textContent = l.text(); }, 150);
     $('#tdone').onclick = async () => {
       clearInterval(iv);
-      const heard = await l.stop();
+      const [heard, blob] = await Promise.all([l.stop(), rec.stop()]);
       const secs = (performance.now() - t0) / 1000;
       const score = similarity(cur().text, heard);
       const missed = missedWords(cur().text, heard);
@@ -111,13 +113,19 @@ function twister(pane) {
       save();
       logActivity('twister', 5);
       $('#tres').innerHTML = `<br><div class="kpi"><div><b class="${score >= 85 ? 'ok' : score >= 60 ? 'warnc' : 'bad'}">${score}%</b><span class="muted">understood</span></div><div><b>${secs.toFixed(1)}s</b><span class="muted">time</span></div></div>
+        <div class="row" style="margin-top:8px"><button class="ghost small" id="pm">🔊 Model</button>${blob ? '<button class="ghost small" id="py">▶ You</button>' : ''}<span class="muted">Compare model → you → model. Hear the difference, then retry.</span></div>
         <p>Heard: “${esc(heard)}”</p>${missed.length ? `<p>Unclear words: ${missed.map(m => `<b class="bad">${esc(m)}</b>`).join(', ')}: slow down and over-articulate these.</p>` : '<p class="ok">Every word was clear!</p>'}`;
+      $('#pm').onclick = () => say(cur().text, { rate: 0.85 });
+      if (blob) { const a = new Audio(URL.createObjectURL(blob)); $('#py').onclick = () => { a.currentTime = 0; a.play(); }; }
     };
   };
 }
 
 function pairs(pane) {
-  const opts = MINIMAL_PAIRS.map((g, i) => `<option value="${i}">${esc(g.group)}</option>`).join('');
+  const pri = L1_PRIORITY[S.settings.l1] || L1_PRIORITY.Other;
+  const rank = g => { const i = pri.indexOf(g.group); return i < 0 ? 99 : i; };
+  const order = MINIMAL_PAIRS.map((g, i) => [g, i]).sort((a, b) => rank(a[0]) - rank(b[0]));
+  const opts = order.map(([g, i]) => `<option value="${i}">${pri.includes(g.group) ? '⭐ ' : ''}${esc(g.group)}</option>`).join('');
   const stats = MINIMAL_PAIRS.map(g => {
     const rs = S.pairs.filter(p => p.group === g.group);
     if (!rs.length) return '';
@@ -129,7 +137,7 @@ function pairs(pane) {
     <select id="pg">${opts}</select> <button id="pgo">Start 10 trials ▶</button>
     <p class="muted" id="ptip"></p><div id="play"></div></div>
     <div class="card"><h2>Your scores</h2>${stats ? `<table><tr><th>Sound</th><th>Last</th><th>Rounds</th></tr>${stats}</table>` : '<p class="muted">No rounds yet.</p>'}
-    <p class="muted">Most important for Indian English speakers: <b>V vs W</b>, <b>TH</b>, short/long vowels.</p></div></div>`;
+    <p class="muted">⭐ = priority sounds for ${esc(S.settings.l1)} speakers (set your first language in <a href="#/coach">AI Coach &amp; Profile</a>). When a word is misheard, the model plays automatically so you hear the target.</p></div></div>`;
   const g = () => MINIMAL_PAIRS[+$('#pg').value];
   const tip = () => { $('#ptip').textContent = '💡 ' + g().tip; };
   tip();
@@ -162,8 +170,9 @@ function pairs(pane) {
         else if (toks.includes(ol)) verdict = 'other';
       }
       if (verdict === 'ok') correct++;
+      else say(target, { rate: 0.8 });
       $('#pheard').innerHTML = verdict === 'ok' ? '<b class="ok">✔ clear</b>' : verdict === 'other' ? `<b class="bad">✘ sounded like “${esc(other)}”</b>` : '<b class="warnc">not recognised</b>';
-      await sleep(900);
+      await sleep(verdict === 'ok' ? 900 : 1800);
     }
     await l.stop();
     if (!pane.isConnected) return;

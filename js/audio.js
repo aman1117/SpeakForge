@@ -53,9 +53,10 @@ export async function calibrate(mic, ms = 1500) {
 }
 
 export class Recorder {
-  constructor(stream) { this.stream = stream; this.chunks = []; this.rec = null; }
+  constructor(stream, video = false) { this.stream = stream; this.video = video; this.chunks = []; this.rec = null; }
   start() {
-    const type = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4'].find(t => window.MediaRecorder && MediaRecorder.isTypeSupported(t)) || '';
+    const types = this.video ? ['video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4'] : ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4'];
+    const type = types.find(t => window.MediaRecorder && MediaRecorder.isTypeSupported(t)) || '';
     this.rec = new MediaRecorder(this.stream, type ? { mimeType: type } : undefined);
     this.chunks = [];
     this.rec.ondataavailable = e => e.data.size && this.chunks.push(e.data);
@@ -67,7 +68,7 @@ export class Recorder {
     ACTIVE.delete(this._kill);
     return new Promise(res => {
       if (!this.rec || this.rec.state === 'inactive') return res(null);
-      this.rec.onstop = () => res(new Blob(this.chunks, { type: this.rec.mimeType || 'audio/webm' }));
+      this.rec.onstop = () => res(new Blob(this.chunks, { type: this.rec.mimeType || (this.video ? 'video/webm' : 'audio/webm') }));
       this.rec.stop();
     });
   }
@@ -84,6 +85,7 @@ export class Listener {
     this.lang = lang;
     this.finalText = '';
     this.interim = '';
+    this.confs = [];
     this.active = false;
     this.rec = null;
   }
@@ -93,6 +95,7 @@ export class Listener {
     this.active = true;
     this.finalText = '';
     this.interim = '';
+    this.confs = [];
     const make = () => {
       const r = new SR();
       r.lang = this.lang;
@@ -103,7 +106,7 @@ export class Listener {
         let interim = '';
         for (let i = e.resultIndex; i < e.results.length; i++) {
           const res = e.results[i];
-          if (res.isFinal) this.finalText += res[0].transcript.trim() + '. ';
+          if (res.isFinal) { this.finalText += res[0].transcript.trim() + '. '; this.confs.push(res[0].confidence || 0); }
           else interim += res[0].transcript;
         }
         this.interim = interim;
@@ -184,4 +187,27 @@ export async function deleteRecording(id) {
     tx.objectStore(STORE).delete(id);
     tx.oncomplete = () => res();
   });
+}
+
+export async function openCamera() {
+  const s = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 720 }, height: { ideal: 1280 }, facingMode: 'user' }, audio: false });
+  const kill = () => s.getTracks().forEach(t => t.stop());
+  ACTIVE.add(kill);
+  return { stream: s, close: () => { ACTIVE.delete(kill); kill(); } };
+}
+
+// Short soft tone used as an audio nudge (bridge cue / speak-up) so you don't have to watch the screen.
+let cueCtx = null;
+export function cue(freq = 660, ms = 140) {
+  try {
+    cueCtx = cueCtx || new (window.AudioContext || window.webkitAudioContext)();
+    const o = cueCtx.createOscillator(), g = cueCtx.createGain();
+    o.frequency.value = freq;
+    g.gain.setValueAtTime(0.0001, cueCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.12, cueCtx.currentTime + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, cueCtx.currentTime + ms / 1000);
+    o.connect(g).connect(cueCtx.destination);
+    o.start();
+    o.stop(cueCtx.currentTime + ms / 1000 + 0.02);
+  } catch { /* audio unavailable */ }
 }

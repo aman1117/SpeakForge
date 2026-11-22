@@ -224,3 +224,124 @@ export function coachNotes(m) {
   if (m.maxSentence && m.maxSentence > 30) notes.push('Very long sentences. Try the 10-word-sentence rule to stay clear.');
   return notes;
 }
+
+const clamp = (v, lo = 0, hi = 100) => Math.max(lo, Math.min(hi, v));
+const avg = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : null;
+const lastN = (arr, n) => (arr || []).slice(-n);
+
+export function avgConfidence(confs) {
+  const c = (confs || []).filter(x => x > 0);
+  return c.length ? Math.round(100 * avg(c)) : null;
+}
+
+// Per-minute rates for an arena round (restarts = max of self-reported and detected).
+export function roundRates(r) {
+  const mins = Math.max((r.speakSec || 0) / 60, 0.25);
+  const restarts = Math.max(r.repetitions || 0, r.selfRestarts || 0);
+  return { freezesPerMin: (r.freezes || 0) / mins, restartsPerMin: restarts / mins, fillersPerMin: (r.fillers || 0) / mins };
+}
+
+// 0-100 score per skill from recent practice data; null = not measured yet.
+export function skillScores(S) {
+  const rounds = lastN(S.sessions, 6).map(s => s.rounds[s.rounds.length - 1]).filter(r => r && r.speakSec >= 15);
+  const rates = rounds.map(roundRates);
+  const res = {};
+  res['Repair fluency'] = rounds.length ? clamp(100 - 14 * avg(rates.map(r => r.freezesPerMin)) - 10 * avg(rates.map(r => r.restartsPerMin))) : null;
+  const nm = lastN(S.naming, 3);
+  res['Lexical retrieval'] = nm.length ? clamp((100 - (avg(nm.map(n => n.avgMs || 7000)) - 1000) / 25) * avg(nm.map(n => n.acc)) / 100) : null;
+  const reviewed = Object.values(S.srs || {}).filter(c => c.reviews);
+  res['Formulaic chunks'] = reviewed.length >= 5 ? clamp(100 * avg(reviewed.map(c => c.box)) / 4) : null;
+  const wpms = rounds.map(r => r.wpm).filter(w => w > 0);
+  res['Pace'] = wpms.length ? clamp(100 - Math.abs(avg(wpms) - 155) * 1.3) : null;
+  res['Pausing (no fillers)'] = rounds.length ? clamp(100 - 12 * avg(rates.map(r => r.fillersPerMin))) : null;
+  const art = [];
+  const dd = lastN(S.ddk, 3);
+  if (dd.length) art.push(clamp(100 * avg(dd.map(d => d.rate)) / 6.5));
+  const tw = lastN(S.twisters, 5);
+  if (tw.length) art.push(avg(tw.map(t => t.score)));
+  const pen = lastN(S.pen, 3);
+  if (pen.length) art.push(avg(pen.map(p => p.score)));
+  const clar = rounds.map(r => r.clarity).filter(c => c != null);
+  if (clar.length) art.push(avg(clar));
+  res['Articulation'] = art.length ? clamp(avg(art)) : null;
+  const pairs = {};
+  (S.pairs || []).forEach(p => { pairs[p.group] = p.score; });
+  res['Pronunciation (sounds)'] = Object.keys(pairs).length ? clamp(avg(Object.values(pairs))) : null;
+  const zn = lastN(S.zone, 3).map(z => z.pct);
+  const arenaZone = rounds.map(r => r.zonePct).filter(z => z != null);
+  res['Volume & projection'] = zn.length || arenaZone.length ? clamp(avg([...zn, ...arenaZone])) : null;
+  const anx = lastN(S.anxiety, 5).filter(a => a.after != null);
+  const rungs = Object.keys(S.exposure || {}).length;
+  res['Confidence'] = anx.length || rungs ? clamp((anx.length ? (10 - avg(anx.map(a => a.after))) * 7 : 35) + rungs * 2) : null;
+  const sh = lastN(S.shadow, 5).filter(x => x.score != null);
+  res['Prosody (shadowing)'] = sh.length ? clamp(avg(sh.map(x => x.score))) : null;
+  const structured = (S.sessions || []).filter(s => ['prep', 'creator', 'questions', 'tenWord'].includes(s.mode)).length;
+  res['Structure'] = structured ? clamp(structured * 8) : null;
+  for (const k of Object.keys(res)) if (res[k] != null) res[k] = Math.round(res[k]);
+  return res;
+}
+
+export const SKILL_LINKS = {
+  'Repair fluency': ['#/speak?mode=noRestart', 'No-Restart challenge'],
+  'Lexical retrieval': ['#/words?t=naming', 'Rapid naming'],
+  'Formulaic chunks': ['#/phrases', 'Phrase Bank review'],
+  'Pace': ['#/speak?mode=quick432', 'Quick 4/3/2'],
+  'Pausing (no fillers)': ['#/speak?mode=tenWord', '10-word sentences'],
+  'Articulation': ['#/mouth?t=pen', 'Pen-in-mouth reading'],
+  'Pronunciation (sounds)': ['#/mouth?t=pairs', 'Minimal pairs'],
+  'Volume & projection': ['#/voice?t=zone', 'Volume zone'],
+  'Confidence': ['#/voice?t=exposure', 'Exposure ladder'],
+  'Prosody (shadowing)': ['#/shadow?t=echo', 'Echo & score shadowing'],
+  'Structure': ['#/speak?mode=prep', 'PREP speech'],
+};
+
+// Picks today's focus: an untested core skill first (to get a baseline), otherwise the weakest one.
+export function focusOfDay(scores) {
+  const core = ['Repair fluency', 'Lexical retrieval', 'Volume & projection', 'Articulation', 'Pronunciation (sounds)', 'Formulaic chunks'];
+  const untested = core.find(k => scores[k] == null);
+  if (untested) return { skill: untested, reason: 'not measured yet. Get your baseline', link: SKILL_LINKS[untested] };
+  const [skill, score] = Object.entries(scores).filter(([, v]) => v != null).sort((a, b) => a[1] - b[1])[0];
+  return { skill, reason: `your weakest skill right now (${score}/100)`, link: SKILL_LINKS[skill] };
+}
+
+export function weeklyReport(sessions, now = Date.now()) {
+  const W = 7 * 86400000;
+  const pick = (from, to) => (sessions || []).filter(s => s.ts >= from && s.ts < to);
+  const sum = list => {
+    const rs = list.map(s => s.rounds[s.rounds.length - 1]).filter(r => r && r.speakSec >= 15);
+    const rates = rs.map(roundRates);
+    const r1 = v => v == null ? null : Math.round(v * 10) / 10;
+    return {
+      speeches: list.length,
+      minutes: Math.round(list.reduce((a, s) => a + s.rounds.reduce((b, r) => b + (r.speakSec || 0), 0), 0) / 60),
+      wpm: rs.length ? Math.round(avg(rs.map(r => r.wpm))) : null,
+      freezesPerMin: r1(avg(rates.map(r => r.freezesPerMin))),
+      restartsPerMin: r1(avg(rates.map(r => r.restartsPerMin))),
+    };
+  };
+  return { thisWeek: sum(pick(now - W, now + 1)), lastWeek: sum(pick(now - 2 * W, now - W)) };
+}
+
+// Pulls the first JSON object out of an LLM reply (handles ```json fences and chatter).
+export function extractJson(text) {
+  if (!text) return null;
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  const body = fenced ? fenced[1] : text;
+  const start = body.indexOf('{'), end = body.lastIndexOf('}');
+  if (start < 0 || end <= start) return null;
+  try { return JSON.parse(body.slice(start, end + 1)); } catch { return null; }
+}
+
+// Which minimal-pair groups to drill first, by first language (common L1-transfer difficulties).
+export const L1_PRIORITY = {
+  Hindi: ['V vs W', 'TH vs T', 'TH vs D', 'Z vs J', 'Short i vs long ee', 'a (cat) vs e (bed)'],
+  Punjabi: ['V vs W', 'TH vs T', 'Z vs J', 'S vs SH', 'Short i vs long ee'],
+  Gujarati: ['V vs W', 'Z vs J', 'TH vs T', 'S vs SH', 'a (cat) vs e (bed)'],
+  Marathi: ['V vs W', 'TH vs T', 'Z vs J', 'a (cat) vs e (bed)', 'Short i vs long ee'],
+  Bengali: ['V vs W', 'S vs SH', 'Z vs J', 'TH vs T', 'P vs F'],
+  Tamil: ['V vs W', 'TH vs T', 'P vs F', 'S vs SH', 'Z vs J', 'oo (pull) vs ooo (pool)'],
+  Telugu: ['V vs W', 'TH vs T', 'Z vs J', 'P vs F', 'a (cat) vs e (bed)'],
+  Kannada: ['V vs W', 'TH vs T', 'Z vs J', 'P vs F', 'a (cat) vs e (bed)'],
+  Malayalam: ['V vs W', 'TH vs T', 'Z vs J', 'S vs SH', 'P vs F'],
+  Other: ['V vs W', 'TH vs T', 'Short i vs long ee'],
+};

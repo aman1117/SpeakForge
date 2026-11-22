@@ -49,7 +49,7 @@ async function review(main, queue) {
     const c = queue[i];
     const mark = l ? l.finalText.length : 0;
     $('#play').innerHTML = `<br><div class="card" style="background:var(--panel2)"><span class="pill">${i + 1}/${queue.length} · ${esc(c.cat)}</span>
-      <div class="prompt">${esc(c.cue)}</div><p class="muted" style="text-align:center">Say a sentence using the phrase…</p>
+      <div class="prompt">${esc(c.cue.replace(new RegExp(c.phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), '____'))}</div><p class="muted" style="text-align:center">Say a sentence using the ${c.cat === 'Lost word' ? `word (starts with “${esc(c.phrase[0])}”)` : 'phrase'}…</p>
       <p style="text-align:center" id="ans" class="hidden"><b style="font-size:20px">“${esc(c.phrase)}”</b></p>
       <div class="transcript" id="tr"></div><br>
       <div class="row"><button class="ghost" id="reveal">Reveal</button><span class="spacer"></span><button class="red" id="bad">✘ Again</button><button class="green" id="good">✔ Got it</button></div></div>`;

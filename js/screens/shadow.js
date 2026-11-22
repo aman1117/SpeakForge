@@ -35,7 +35,9 @@ function bindPicker(onChange) {
 }
 
 function along(pane) {
-  pane.innerHTML = `<div class="card hl"><h2>Speak along</h2>${scriptPicker()}<br>
+  const fromAi = sessionStorage.getItem('sf.shadow');
+  if (fromAi) { scriptText = fromAi; sessionStorage.removeItem('sf.shadow'); }
+  pane.innerHTML = `<div class="card hl"><h2>Speak along</h2>${fromAi ? '<p class="ok">Loaded your AI native-style rewrite: shadow your own ideas said fluently.</p>' : ''}${scriptPicker()}<br>
     <div class="passage" id="words"></div><br>
     <div class="row"><label class="muted">Speed</label><select id="rate"><option value="0.7">0.7× (learn)</option><option value="0.85">0.85×</option><option value="1" selected>1× (natural)</option><option value="1.15">1.15× (challenge)</option></select>
     <button id="play">▶ Play &amp; shadow</button><button class="ghost" id="stop">■ Stop</button><button class="green" id="done">✔ Log 5 reps</button></div>
@@ -47,6 +49,7 @@ function along(pane) {
   };
   draw();
   bindPicker(draw);
+  if (fromAi) { $('#sp').value = 'custom'; $('#stext').classList.remove('hidden'); $('#stext').value = scriptText; }
   $('#play').onclick = () => {
     const spans = [...$('#words').querySelectorAll('.word')];
     say(scriptText, {

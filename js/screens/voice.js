@@ -119,14 +119,31 @@ function breath(pane) {
 }
 
 function exposure(pane) {
-  pane.innerHTML = `<div class="card hl ladder"><h2>Exposure ladder</h2>
+  const next = EXPOSURE_LADDER.find(e => !S.exposure[e.id]);
+  const log = (S.exposureLog || []).slice(-8).reverse();
+  pane.innerHTML = `<div class="grid g2"><div class="card hl ladder"><h2>Exposure ladder</h2>
     <p>Anxiety drops through <b>gradual, repeated exposure</b>. Climb one rung at a time; repeat a rung until it feels boring, then move up. Each completed rung = +25 XP.</p>
     ${EXPOSURE_LADDER.map(e => `<label><input type="checkbox" data-id="${e.id}" ${S.exposure[e.id] ? 'checked' : ''}> <span class="pill">L${e.level}</span> ${esc(e.text)} ${S.exposure[e.id] ? `<span class="muted">✔ ${new Date(S.exposure[e.id]).toLocaleDateString()}</span>` : ''}</label>`).join('')}
-  </div>`;
+  </div>
+  <div class="card"><h2>📝 Log a real-world speaking moment</h2>
+    <p class="muted">Meetings, calls, Toastmasters, a reel… Logging before/after nerves shows you that reality is easier than the fear.</p>
+    <input id="ewhat" placeholder="What did you do? e.g. asked a question in standup" style="width:100%" value="${next ? esc(next.text) : ''}"><br><br>
+    <div class="row"><label>Before <input type="number" id="eb" min="0" max="10" value="7" style="width:60px"></label><label>After <input type="number" id="ea" min="0" max="10" value="4" style="width:60px"></label><button id="elog">Log it (+20 XP)</button></div>
+    <table>${log.map(x => `<tr><td>${new Date(x.ts).toLocaleDateString()}</td><td>${esc(x.what)}</td><td>${x.before}→<b class="${x.after < x.before ? 'ok' : 'warnc'}">${x.after}</b></td></tr>`).join('')}</table></div></div>`;
   pane.querySelectorAll('input[type=checkbox]').forEach(cb => cb.onchange = () => {
     if (cb.checked) { S.exposure[cb.dataset.id] = Date.now(); logActivity('exposure', 25); } else { delete S.exposure[cb.dataset.id]; save(); }
     exposure(pane);
   });
+  $('#elog').onclick = () => {
+    const what = $('#ewhat').value.trim();
+    if (!what) return;
+    const before = Math.max(0, Math.min(10, +$('#eb').value)), after = Math.max(0, Math.min(10, +$('#ea').value));
+    S.exposureLog = S.exposureLog || [];
+    S.exposureLog.push({ ts: Date.now(), what, before, after });
+    S.anxiety.push({ ts: Date.now(), before, after, real: true });
+    logActivity('realworld', 20);
+    exposure(pane);
+  };
 }
 
 function anx(pane) {

@@ -7,13 +7,19 @@ export function defaultState() {
   return {
     startDate: dayKey(), xp: 0, days: {}, sessions: [], naming: [], ddk: [], twisters: [], pairs: [], taboo: [],
     category: [], pen: [], zone: [], shadow: [], anxiety: [], volume: { baseline: null }, srs: {}, exposure: {},
+    exposureLog: [], partner: [],
+    settings: { l1: 'Hindi', accent: 'american', bridgeMs: 1800, cue: true, camera: false, ritual: true, dailyMinutes: 35 },
+    ai: { provider: 'none', auto: true, model: '', endpoint: '', key: '', deployment: '', apiVersion: '2024-10-21' },
   };
 }
 
 function load() {
   try {
     const s = JSON.parse(localStorage.getItem(KEY));
-    if (s && typeof s === 'object') return { ...defaultState(), ...s };
+    if (s && typeof s === 'object') {
+      const d = defaultState();
+      return { ...d, ...s, settings: { ...d.settings, ...(s.settings || {}) }, ai: { ...d.ai, ...(s.ai || {}) } };
+    }
   } catch { /* fall through */ }
   return defaultState();
 }
@@ -22,8 +28,18 @@ export const S = load();
 export function save() { localStorage.setItem(KEY, JSON.stringify(S)); renderXp(); }
 export function replaceState(obj) {
   for (const k of Object.keys(S)) delete S[k];
-  Object.assign(S, defaultState(), obj);
+  const d = defaultState();
+  Object.assign(S, d, obj, { settings: { ...d.settings, ...(obj.settings || {}) }, ai: { ...d.ai, ...(obj.ai || {}) } });
   save();
+}
+
+// Adds a word/phrase to the spaced-repetition deck (used for words you lost mid-speech).
+export function addToDeck(phrase, cue, cat = 'Lost word') {
+  const p = String(phrase || '').trim();
+  if (!p) return false;
+  if (!S.srs[p]) S.srs[p] = { cat, phrase: p, cue: cue || 'A word you lost while speaking. Use it in a sentence', box: 0, due: 0 };
+  save();
+  return true;
 }
 
 export function logActivity(kind, xp, data = {}) {

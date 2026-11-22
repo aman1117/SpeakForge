@@ -41,19 +41,30 @@ function matches(heard, target) {
   return toks.some(t => t === last || t === last + 's' || t === last + 'es' || (last.length > 5 && t.startsWith(last.slice(0, -1))));
 }
 
+function lostWordItems() {
+  return Object.values(S.srs).filter(c => c.cat === 'Lost word').map(c => {
+    const re = new RegExp(c.phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+    const hint = `${c.phrase[0]}${' _'.repeat(Math.max(0, c.phrase.length - 1))} (${c.phrase.length} letters)`;
+    return [`${hint}: ${c.cue.replace(re, '____')}`, c.phrase];
+  });
+}
+
 function naming(pane) {
   const hist = S.naming.slice(-8).map(n => `${new Date(n.ts).toLocaleDateString()}: ${n.avgMs} ms, ${n.acc}%`).join('<br>') || 'No rounds yet.';
+  const lost = lostWordItems();
   pane.innerHTML = `<div class="grid g2">
     <div class="card hl"><h2>Rapid naming</h2>
       <p>A picture or definition appears. <b>Say the word out loud as fast as you can.</b> SpeakForge measures your retrieval speed. 10 items per round.</p>
-      <div class="row"><select id="ntype"><option value="emoji">Pictures (everyday words)</option><option value="defs">Definitions (richer vocabulary)</option></select>
-      <button id="nstart">Start round ▶</button></div></div>
+      <div class="row"><select id="ntype"><option value="emoji">Pictures (everyday words)</option><option value="defs">Definitions (richer vocabulary)</option><option value="lost" ${lost.length ? '' : 'disabled'}>🧠 My lost words (${lost.length})</option></select>
+      <button id="nstart">Start round ▶</button></div>
+      <p class="muted">“My lost words” = words you couldn't find while speaking (added from Speaking Arena results or AI feedback). Retrieving them here makes them instant next time.</p></div>
     <div class="card"><h2>Your history</h2><p class="muted">${hist}</p><p class="muted">Goal: average under 1500 ms with 90%+ accuracy. Speech recognition adds ~0.5 s, so compare yourself to yourself.</p></div></div>
     <div id="play"></div>`;
   $('#nstart').onclick = async () => {
     if (needSpeech($('#play')) || !(await ensureMic())) return;
     const type = $('#ntype').value;
-    const items = shuffle(type === 'emoji' ? NAMING_EMOJI : NAMING_DEFS).slice(0, 10);
+    const pool = type === 'emoji' ? NAMING_EMOJI : type === 'lost' ? lostWordItems() : NAMING_DEFS;
+    const items = shuffle(pool).slice(0, 10);
     const listener = new Listener();
     listener.start();
     await sleep(500);

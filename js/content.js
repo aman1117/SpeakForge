@@ -258,3 +258,46 @@ export const SKILLS = [
   { name: 'Confidence & presence', what: 'Speaking up despite nerves; eye contact; energy.', drill: 'Exposure ladder, Toastmasters, filming daily' },
   { name: 'Listening & imitation', what: 'Hearing native patterns and copying them.', drill: 'Shadowing Theo/Mona clips' },
 ];
+
+export const QUESTIONS = [
+  'What did you do last weekend?', 'What is the best decision you made this year?', 'If you could live in any city, which one and why?',
+  'What is something most people don’t know about your job?', 'What app could you not live without?', 'What would you teach a class on?',
+  'What is the most useful thing you learned at work recently?', 'Describe a person who inspires you.', 'What is your opinion on working from home?',
+  'If you had one extra hour every day, how would you use it?', 'What is a skill you are learning right now?', 'Tell me about a problem you solved recently.',
+  'What makes a good team?', 'What advice would you give your 18-year-old self?', 'What is overrated in tech right now?',
+  'What would you build if you had unlimited time?', 'How do you relax after a stressful day?', 'What is your favourite way to learn something new?',
+  'What is one habit that changed your life?', 'Describe your perfect weekend.', 'What do you think AI will change most in 5 years?',
+  'What was the hardest bug you ever fixed?', 'What is a movie everyone should watch?', 'Why do you want to create content on Instagram?',
+  'What is something you changed your mind about?', 'What is the best compliment you have received?', 'Explain your favourite hobby to a beginner.',
+  'What would you do if you were the CEO of your company for a day?', 'What is a common mistake people make when learning English?', 'Describe your hometown.',
+  'What is a tool or product you recommend to everyone?', 'What does a great day at work look like for you?', 'Which festival do you enjoy most and why?',
+  'What is your morning routine?', 'If you started a YouTube channel, what would it be about?', 'What is something you are proud of?',
+  'How would you explain your work to a child?', 'What is the most interesting place you have visited?', 'What do you think makes someone a good speaker?',
+  'What is one thing you want to achieve in the next 6 months?',
+];
+
+export const BENCHMARK_TOPIC = 'Benchmark: introduce yourself and what you do';
+
+export const AFFIRMATIONS = [
+  'I don’t need perfect English. I need to be understood. And I am.',
+  'Every word I say out loud today makes the next one easier.',
+  'Nervous energy is just excitement. I’ll use it.',
+  'If I lose a word, I describe it and keep going. That’s what fluent people do.',
+  'Nobody is judging me as hard as I judge myself.',
+  'My voice deserves space. I’ll speak to the back of the room.',
+  'Mistakes are proof I’m practising.',
+];
+
+export const LESSONS = {
+  'Repair fluency': { good: 'Fluent speakers lose words too. They never rewind; they bridge ("the thing that…") and keep the same sentence.', how: ['Use P.B.C.: Pause → Bridge → Continue', 'Press SPACE every time you restart, to build awareness', 'Do one No-Restart challenge a day'], target: 'Under 1 freeze and 1 restart per minute' },
+  'Lexical retrieval': { good: 'Words come out within ~1 s because they have been retrieved many times before.', how: ['Rapid naming daily', 'Add every word you lost to “My lost words”', 'Category and synonym sprints'], target: 'Naming average under 1.4 s at 90%+' },
+  'Formulaic chunks': { good: 'Natives speak in pre-built chunks (“to be honest”, “which means”), which frees the brain to think.', how: ['Phrase Bank review daily', 'Use 3 phrases in every speech', 'Add phrases you hear from Theo/Mona'], target: 'Most phrases in box 3+' },
+  'Pace': { good: 'Comfortable, clear pace: 140-170 wpm for impromptu speech.', how: ['4/3/2: same talk in less time', 'Shadow at 1× then 1.15×'], target: '150-170 wpm with clarity 90%+' },
+  'Pausing (no fillers)': { good: 'Short silent pauses between ideas instead of “um/uh/basically”.', how: ['10-word sentences', 'Replace a filler with a silent half-second breath'], target: 'Under 2 fillers per minute' },
+  'Articulation': { good: 'Every syllable is clean; word endings are finished; mouth opens enough.', how: ['Warm-up + pen-in-mouth daily', 'Tongue twisters slow → fast', 'Watch recognition clarity %'], target: 'Pen-reading clarity 95%, pa-ta-ka 6+/s' },
+  'Pronunciation (sounds)': { good: 'Sounds that change meaning (V/W, TH, vowels) are distinct.', how: ['Minimal pairs for your first-language priorities', 'Listen: model vs you'], target: '85%+ on every group' },
+  'Volume & projection': { good: 'Easily heard at 3 metres without strain; volume stays up at sentence ends.', how: ['Volume zone daily', 'Projection ladder', 'Arena speak-up nudge'], target: '85% of speech in the confident zone' },
+  'Confidence': { good: 'You speak even when nervous, and nervousness after speaking is lower than before.', how: ['Pre-speech ritual (breath + self-talk)', 'Climb the exposure ladder weekly', 'Camera mode'], target: 'Nervousness after < 3/10; ladder L10+' },
+  'Prosody (shadowing)': { good: 'Stress, rhythm and melody sound natural: key words stressed, small words reduced.', how: ['Shadow 10 min/day', 'Echo & score'], target: 'Echo clarity 90%+' },
+  'Structure': { good: 'Listeners always know your point: hook → point → reason → example → close.', how: ['PREP mode', 'Creator mode', 'Question chain'], target: '20+ structured speeches' },
+};

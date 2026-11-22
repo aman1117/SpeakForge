@@ -1,42 +1,50 @@
 # 🎙️ SpeakForge
 
-A personal speaking gym for **fluent, clear, confident English**. It runs locally in your browser; nothing is uploaded except the audio that Edge/Chrome's built-in speech recognition sends to its own service for transcripts.
+A personal speaking gym for **fluent, clear, confident English**, built around three problems: losing words mid-sentence and restarting, unclear articulation, and nervousness about speaking loudly.
 
 ➡️ **Read [PLAN.md](PLAN.md) first**: your 6-month plan, the science behind it, and what we learned from Theo and Mona (@babystepstothemic).
 
 ## Start
+
+**On your phone or any PC (no install):** https://aman1117.github.io/SpeakForge/ (use Chrome or Edge, allow the microphone, and "Add to Home screen" to install it like an app).
+
+**On this PC:**
 ```powershell
 cd SpeakForge
-.\start.ps1          # serves http://localhost:8765 and opens Edge
+.\start.ps1                   # serves http://localhost:8765 and opens Edge
+.\start.ps1 -Reminder 20:00   # optional: open SpeakForge automatically every day at 20:00
+.\start.ps1 -RemoveReminder   # remove the daily reminder
 ```
-Use **Microsoft Edge or Google Chrome** (needed for speech recognition) and allow microphone access. Use a headset or a quiet room for accurate pause/volume measurements.
+Progress is stored per device/browser. Use **Journal → Export / Import** to move it.
 
 ## What's inside
 
-| Screen | Trains | Highlights |
+| Screen | Solves | Highlights |
 |---|---|---|
-| **Today** | Habit | Daily mission for your current phase, XP/levels/streak, progress charts, 12-skill map |
-| **Speaking Arena** | Fluency, repair, structure | 1-min random topics, 4/3/2, 10-word sentences, PREP, Creator reels, **No-Restart** mode. Live **freeze detection → BRIDGE card** with rescue phrases. Results: words/min, freezes, recovered freezes, restarts, fillers, volume, highlighted transcript, recording, **AI-coach prompt** |
-| **Word Lab** | Word retrieval | Rapid naming (ms per word), Taboo (circumlocution), category sprint, synonym sprint |
-| **Mouth Gym** | Articulation | Guided warm-up, pa-ta-ka speed test, scored tongue twisters, minimal pairs (V/W, TH, S/SH, vowels…), pen-in-mouth reading |
-| **Confidence Lab** | Volume, nerves | Calibrated volume zone, projection ladder, box breathing, 15-step exposure ladder, nervousness before/after chart |
-| **Shadowing** | Prosody, accent | Speak-along with word highlighting, echo-and-score, A-B loop + speed control for your own Theo/Mona clips |
-| **Phrase Bank** | Chunks | 40+ rescue/opinion/linking/hook phrases with Leitner spaced repetition, auto-checked by voice |
-| **6-Month Plan** | Direction | 4 phases, 26 weekly themes, routine, targets |
-| **Journal** | Proof | Every speech recorded locally, first vs latest comparison, download, export/import progress |
+| **Today** | Habit | Adaptive daily mission sized to your daily minutes (10/20/35/60), Saturday benchmark, Sunday real-world task, focus of the day, weekly report, progress charts |
+| **Speaking Arena** | Word-freeze restarts, fluency, volume, camera nerves | Modes: 1-min topics, **No-Restart**, **Question chain** (5 spoken questions), 4/3/2, 10-word, PREP, Creator, **Benchmark**. Live **BRIDGE cards + beep** on freezes, **SPACE / tap to count restarts**, **live "speak up" volume coaching**, **camera mode** (records video), calm-down ritual. Results: wpm, freezes, recovered, restarts (self + detected), fillers, **clarity %**, volume-zone %, highlighted transcript, **"which words did you lose?" → your deck**, **automatic AI feedback** |
+| **Word Lab** | Word retrieval | Rapid naming (incl. **My lost words**), Taboo, category sprint, synonym sprint |
+| **Mouth Gym** | Articulation | Warm-up, pa-ta-ka speed test, scored tongue twisters with **model vs you** playback, minimal pairs **prioritised for your first language** (auto-plays the model when misheard), pen-in-mouth reading |
+| **Confidence Lab** | Volume, anxiety | Calibrated volume zone, projection ladder, box breathing, exposure ladder, **real-world moment log** (before → after nerves), nervousness trend |
+| **Shadowing** | Prosody, accent | Speak-along with word highlighting, echo-and-score, your own Theo/Mona clips with A-B loop + speed, shadow your **AI rewrite** |
+| **Phrase Bank** | Chunks + lost words | Spaced repetition, auto-checked by voice; lost words show a first-letter hint |
+| **Skills** | "Which skills do I need?" | Live 0-100 score on 11 skills from your data, lessons, targets, "train now" |
+| **AI Coach** | Feedback + real conversation | Profile (first language, accent goal, daily time). Connect **OpenAI**, **Azure OpenAI**, or **free local Ollama** for automatic feedback (corrections, the words you were looking for, native-style rewrite, chunks) and a **voice conversation partner** with BRIDGE cards |
+| **Plan / Journal** | Direction + proof | 26-week plan; recordings (audio + video), first vs latest benchmark, export without your AI key |
+
+### Privacy
+Recordings and progress stay in your browser (IndexedDB/localStorage). Edge/Chrome speech recognition sends audio to the browser vendor's speech service to produce transcripts. If you connect an AI, only the transcript and metrics go to the provider you chose. Your API key stays in this browser and is never included in exports.
 
 ## Deep analysis of a recording (optional, offline)
 ```powershell
 pip install faster-whisper praat-parselmouth av numpy
 python tools\analyze_me.py path\to\recording.webm
 ```
-Measures speaking rate, syllables/sec, pause placement (mid-phrase vs boundary), freezes, fillers, restarts, pitch range and variation, falling intonation, and American-R strength. It compares each one against Theo Browne's measured values. Validated by running it on Theo's own audio, where it reproduces his numbers.
+Compares you with Theo Browne's measured values on rate, pause placement, freezes, fillers, restarts, pitch range/variation, falling intonation and American-R strength. Validated on Theo's own audio.
 
 ## Tests
 ```powershell
-node --test tests/          # unit tests for metrics, voice tracking, SRS, streaks
-python tests\smoke.py       # end-to-end: headless Edge + fake microphone, every screen + a real session
+node --test tests/             # unit tests: metrics, voice tracking, skill scores, focus, weekly report, SRS, AI JSON parsing
+python tests\smoke.py          # E2E: headless Edge + fake mic & camera + mock AI server, every screen and feature
+python tests\e2e_speech.py     # E2E: fake speech recogniser → restart/filler detection, clarity, AI feedback, lost words, conversation partner
 ```
-
-## Data
-Progress: browser localStorage (`speakforge.v1`). Recordings: IndexedDB. Export a backup from **Journal** weekly.
