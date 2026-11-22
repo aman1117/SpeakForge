@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Audience demo · SpeakForge</title>
+<link rel="stylesheet" href="../css/fonts.css">
+<link rel="stylesheet" href="../css/style.css">
+<style>
+  body { padding: 28px; }
+  .wrap { max-width: 1100px; margin: 0 auto; }
+  h1 { font: 760 30px/1.1 var(--display); letter-spacing: -0.02em; margin: 0 0 6px; }
+  #aud { width: 100%; height: auto; aspect-ratio: 16 / 9; border-radius: var(--r-lg); background: #1c0e21; }
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 14px 0; }
+  .bar button { font: 600 14px var(--text); color: var(--ivory); background: var(--velvet-2); border: 0; border-radius: 99px; padding: 8px 14px; cursor: pointer; }
+  .bar button.on { background: var(--brass); color: var(--curtain); }
+  .stat { color: var(--mist); font-size: 14px; margin-left: auto; font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1 id="title">Audience</h1>
+  <div class="bar" id="levels"></div>
+  <canvas id="aud"></canvas>
+  <div class="bar">
+    <button id="start">Start (murmur)</button>
+    <button data-mode="idle" class="on">Idle</button>
+    <button data-mode="speaking">Speaking</button>
+    <button data-mode="freeze">Freeze</button>
+    <button data-mode="quiet">Quiet</button>
+    <button id="clap">Applause</button>
+    <span class="stat" id="stat"></span>
+  </div>
+</div>
+<script type="module">
+  import { Audience, AUDIENCE_LEVELS } from '../js/audience.js';
+  const q = new URLSearchParams(location.search);
+  const aud = new Audience(document.getElementById('aud'), { level: +(q.get('level') || 1), sound: q.get('sound') !== '0' });
+  window.aud = aud;
+  const levels = document.getElementById('levels'), title = document.getElementById('title');
+  const setLevel = id => {
+    aud.setLevel(id);
+    const lv = AUDIENCE_LEVELS.find(l => l.id === id);
+    title.textContent = `Level ${lv.id} · ${lv.name} (${lv.size}, ${lv.mood})`;
+    levels.querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.id === id));
+  };
+  for (const lv of AUDIENCE_LEVELS) {
+    const b = document.createElement('button'); b.dataset.id = lv.id; b.textContent = `${lv.id} · ${lv.name}`;
+    b.onclick = () => setLevel(lv.id); levels.append(b);
+  }
+  setLevel(aud.lv.id);
+  let mode = 'idle';
+  window.setMode = m => { mode = m; document.querySelectorAll('[data-mode]').forEach(b => b.classList.toggle('on', b.dataset.mode === m)); };
+  document.querySelectorAll('[data-mode]').forEach(b => (b.onclick = () => setMode(b.dataset.mode)));
+  document.getElementById('start').onclick = () => aud.start();
+  document.getElementById('clap').onclick = () => { setMode('idle'); aud.applause(); };
+  // fake mic: syllable-like energy with short pauses between phrases
+  const threshold = -42;
+  setInterval(() => {
+    const t = performance.now() / 1000;
+    let db = -65, m = mode;
+    if (mode === 'speaking') {
+      const pause = (t % 3.2) > 2.85;
+      db = pause ? -60 : threshold + 10 + 6 * Math.sin(t * 13) * Math.sin(t * 3.1) + Math.random() * 3;
+      m = db >= threshold ? 'speaking' : 'idle';
+    } else if (mode === 'quiet') db = threshold - 3;
+    aud.feed(db, threshold, m);
+  }, 30);
+  const stat = document.getElementById('stat');
+  setInterval(() => { stat.textContent = `engagement ${(aud.engagement() * 100).toFixed(0)}% · draw ${(aud._ft || 0).toFixed(2)} ms`; }, 250);
+</script>
+</body>
+</html>

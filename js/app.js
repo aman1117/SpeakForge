@@ -1,214 +1,140 @@
-import { S, save, replaceState, renderXp, $, esc, todayCount, streak, lineChart, toast } from './core.js';
-import { stopAllAudio, listRecordings, deleteRecording } from './audio.js';
-import { dayKey, weekNumber, levelFromXp } from './metrics.js';
+import { S, save, renderXp, $, esc, todayCount, lineChart, todayMinutesSpoken } from './core.js';
+import { stopAllAudio, setListenMode } from './audio.js';
+import { dayKey, weekNumber, skillScores, focusOfDay, SKILL_GROUPS, SKILL_LINKS } from './metrics.js';
 import { PHASES, WEEK_THEMES } from './content.js';
+import { icon, ringsSvg } from './icons.js';
+import { todaysTasks, startWorkout, workoutBar, stepDone, activeWorkout, skipStep } from './workout.js';
 import * as speak from './screens/speak.js';
 import * as words from './screens/words.js';
 import * as mouth from './screens/mouth.js';
-import * as voice from './screens/voice.js';
+import * as calm from './screens/calm.js';
 import * as shadow from './screens/shadow.js';
 import * as phrases from './screens/phrases.js';
 import * as coach from './screens/coach.js';
-import * as skills from './screens/skills.js';
+import * as progress from './screens/progress.js';
 import * as theo from './screens/theo.js';
+import * as explain from './screens/explain.js';
+import * as fillers from './screens/fillers.js';
+import * as real from './screens/real.js';
+import * as masters from './screens/masters.js';
 import { LOCAL, detectLocal, waitUntilReady, retryDetect } from './local.js';
-import { setListenMode } from './audio.js';
-import { focusCard, weeklyCard } from './screens/skills.js';
 import { aiReady } from './ai.js';
+import { weeklyCard } from './screens/skills.js';
 
-const MISSIONS = {
-  Foundation: [
-    ['warmup', 1, '3-min mouth warm-up', '#/mouth?t=warmup', 3],
-    ['zone', 1, 'Hold the confident volume zone (40 s)', '#/voice?t=zone', 3],
-    ['pen', 1, 'Pen-in-mouth reading', '#/mouth?t=pen', 4],
-    ['speak', 2, '1-minute random topic ×2', '#/speak?mode=oneMin', 5],
-    ['phrases', 1, 'Phrase review (rescue phrases)', '#/phrases', 4],
-    ['naming', 1, 'Rapid naming round', '#/words?t=naming', 3],
-  ],
-  'Fluency engine': [
-    ['warmup', 1, '3-min mouth warm-up', '#/mouth?t=warmup', 3],
-    ['speak432', 1, '4/3/2 fluency (quick or full)', '#/speak?mode=quick432', 6],
-    ['taboo', 2, 'Taboo ×2 (talk around words)', '#/words?t=taboo', 4],
-    ['naming', 1, 'Rapid naming round', '#/words?t=naming', 3],
-    ['shadow', 1, 'Shadowing 10 min', '#/shadow?t=along', 10],
-    ['phrases', 1, 'Phrase review', '#/phrases', 4],
-  ],
-  Expression: [
-    ['warmup', 1, '3-min mouth warm-up', '#/mouth?t=warmup', 3],
-    ['shadow', 1, 'Shadow a Theo/Mona clip 10 min', '#/shadow?t=own', 10],
-    ['speak', 2, 'PREP or 10-word-sentence speech ×2', '#/speak?mode=prep', 5],
-    ['twister', 3, 'Tongue twisters ×3', '#/mouth?t=twister', 3],
-    ['phrases', 1, 'Phrase review', '#/phrases', 4],
-    ['zone', 1, 'Volume zone', '#/voice?t=zone', 2],
-  ],
-  'Creator mode': [
-    ['warmup', 1, '3-min mouth warm-up', '#/mouth?t=warmup', 3],
-    ['speakCreator', 2, 'Creator reel practice ×2 (Hook → CTA)', '#/speak?mode=creator', 6],
-    ['shadow', 1, 'Shadow a creator clip 10 min', '#/shadow?t=own', 10],
-    ['twister', 2, 'Tongue twisters ×2', '#/mouth?t=twister', 2],
-    ['pairs', 1, 'Minimal pairs round', '#/mouth?t=pairs', 3],
-    ['phrases', 1, 'Phrase review', '#/phrases', 4],
-  ],
-};
+const NAV = [
+  ['home', 'Today', 'today'], ['speak', 'Speak', 'mic', 'cta-link'],
+  ['practice', 'Practice', 'practice', '', 'words,mouth,calm,voice,shadow,phrases,explain,fillers,partner,drills'],
+  ['real', 'Real life', 'real'], ['progress', 'Progress', 'progress', '', 'skills,journal,plan'],
+  ['masters', 'Learn from the best', 'masters', '', 'theo'], ['settings', 'Settings', 'settings', '', 'coach'],
+];
+const TABS = ['home', 'speak', 'practice', 'real', 'progress'];
+
+function renderNav() {
+  $('#nav').innerHTML = NAV.map(([r, label, ic, cls = '', also = '']) => `<a href="#/${r}" class="${cls}" data-also="${also}">${icon(ic)}${label}</a>`).join('');
+  $('#tabbar').innerHTML = NAV.filter(n => TABS.includes(n[0])).map(([r, label, ic, , also = '']) => `<a href="#/${r}" data-also="${also}">${icon(ic)}${label}</a>`).join('');
+}
 
 export function currentWeek() { return Math.min(26, weekNumber(S.startDate, dayKey())); }
 export function currentPhase() { const w = currentWeek(); return PHASES.find(p => w >= p.weeks[0] && w <= p.weeks[1]) || PHASES[PHASES.length - 1]; }
-
-// Builds today's mission from the phase, the user's daily time budget and the weekday.
-export function todaysTasks(phaseName, minutes, weekday, aiOn = false) {
-  const all = MISSIONS[phaseName];
-  let tasks;
-  if (minutes <= 10) tasks = [all[0], ['speak', 1, '1-minute random topic', '#/speak?mode=oneMin', 3], ['phrases', 1, 'Phrase review', '#/phrases', 4]];
-  else if (minutes <= 20) tasks = all.slice(0, 4);
-  else if (minutes >= 60) tasks = [...all, aiOn ? ['partner', 1, 'AI conversation partner (10 min)', '#/coach', 10] : ['taboo', 2, 'Taboo ×2 (describe without the word)', '#/words?t=taboo', 4], ['category', 1, 'Category sprint', '#/words?t=category', 2]];
-  else tasks = all;
-  if (weekday === 6) tasks = [['benchmark', 1, 'Saturday benchmark speech', '#/speak?mode=benchmark', 3], ...tasks];
-  if (weekday === 0) tasks = [...tasks, ['realworld', 1, 'Sunday: one real-world speaking moment (then log it)', '#/voice?t=exposure', 10]];
-  return tasks;
-}
+export { todaysTasks };
 
 function greeting() {
   const h = new Date().getHours();
-  return h < 5 ? 'Late night rehearsal.' : h < 12 ? 'Good morning.' : h < 17 ? 'Good afternoon.' : 'Good evening.';
+  return h < 5 ? 'Late-night rehearsal.' : h < 12 ? 'Good morning.' : h < 17 ? 'Good afternoon.' : 'Good evening.';
+}
+
+export function groupScores(sc) {
+  return Object.entries(SKILL_GROUPS).map(([g, ks]) => {
+    const v = ks.map(k => sc[k]).filter(x => x != null);
+    return [g, v.length ? Math.round(v.reduce((a, b) => a + b, 0) / v.length) : null, SKILL_LINKS[ks[0]]];
+  });
 }
 
 function home(main) {
   const week = currentWeek(), phase = currentPhase();
-  const tasks = todaysTasks(phase.name, S.settings.dailyMinutes, new Date().getDay(), aiReady(S.ai));
-  const done = tasks.filter(t => todayCount(t[0]) >= t[1]).length;
-  const next = tasks.find(t => todayCount(t[0]) < t[1]);
-  const speakSessions = S.sessions.map(s => s.rounds[s.rounds.length - 1]);
-  const totalSec = S.sessions.reduce((a, s) => a + s.rounds.reduce((b, r) => b + (r.speakSec || 0), 0), 0);
-  const restartsOf = r => Math.max(r.repetitions || 0, r.selfRestarts || 0);
-  const minutesLeft = tasks.filter(t => todayCount(t[0]) < t[1]).reduce((a, t) => a + t[4], 0);
+  const sc = skillScores(S);
+  const focus = focusOfDay(sc);
+  const w = activeWorkout();
+  const tasks = w ? w.steps : todaysTasks(phase.name, S.settings.dailyMinutes, new Date().getDay(), aiReady(S.ai), focus.skill);
+  const done = tasks.filter(stepDone).length;
+  const next = tasks.find(t => !stepDone(t));
+  const minutesLeft = tasks.filter(t => !stepDone(t)).reduce((a, t) => a + t[4], 0);
+  const talk = todayMinutesSpoken();
+  const reps = todayCount('explain');
   main.innerHTML = `
-    <section class="hero">
-      <div>
-        <h1>${greeting()} ${next ? 'Your stage is ready.' : 'Today’s rehearsal is done.'}</h1>
-        <p class="sub" style="margin-bottom:0">Week ${week} of 26, ${esc(phase.name.toLowerCase())}. This week you’re working on ${esc((WEEK_THEMES[week] || '').toLowerCase())}.</p>
-        ${next ? `<div class="next-up row"><a class="btn" href="${next[3]}">Start with: ${esc(next[2])}</a><span class="muted">About ${minutesLeft} minutes left today</span></div>`
-          : `<div class="next-up row"><a class="btn" href="#/journal">Listen to today’s recordings</a><span class="muted">Come back tomorrow to keep your streak.</span></div>`}
-        <div class="meta">
-          <div><b>${streak()}</b>day streak</div>
-          <div><b>${S.sessions.length}</b>speeches</div>
-          <div><b>${Math.round(totalSec / 60)}</b>minutes spoken</div>
-          <div><b>${done} of ${tasks.length}</b>done today</div>
-        </div>
+    <p class="eyebrow">Week ${week} of 26 · ${esc(phase.name)}</p>
+    <h1>${greeting()} ${next ? 'Your stage is ready.' : 'Today’s workout is done.'}</h1>
+    <p class="sub">This week: <b>${esc(WEEK_THEMES[week] || '')}</b>. ${esc(phase.goal)}</p>
+    <div class="hero">
+      <div class="card hl workout-card">
+        <div class="top">${ringsSvg([{ pct: done / tasks.length, color: '#7fd1c4' }, { pct: talk / 8, color: '#f2b544' }, { pct: reps / 2, color: '#b9a6ff' }])}
+          <div class="ring-legend"><span><i style="background:var(--seaglass)"></i><b>${done}/${tasks.length}</b> workout steps</span>
+            <span><i style="background:var(--brass)"></i><b>${talk}/8</b> minutes speaking</span><span><i style="background:var(--lilac)"></i><b>${reps}/2</b> explanations</span></div></div>
+        <div class="row" style="margin:16px 0 4px">${next ? `<button class="big" id="startw">${icon('play')} ${w && done ? 'Continue workout' : 'Start today’s workout'}</button><span class="muted">${tasks.length - done} steps · about ${minutesLeft} min</span>`
+          : '<a class="btn big" href="#/progress?t=recordings">Listen to today’s recordings</a><span class="muted">Come back tomorrow. Consistency beats intensity.</span>'}</div>
+        <div class="runsheet">${tasks.map(t => { const ok = stepDone(t); return `<a href="${t[3]}" style="text-decoration:none;color:inherit"><div class="task ${ok ? 'done' : t === next ? 'now' : ''}"><div class="chk"></div><div class="t">${esc(t[2])}</div><span class="faint">${t[1] > 1 ? `${Math.min(todayCount(t[0]), t[1])}/${t[1]} · ` : ''}${t[4]} min</span></div></a>`; }).join('')}</div>
+        <p class="faint" style="margin:12px 0 0">Daily time: ${S.settings.dailyMinutes} min (<a href="#/settings">change</a>). Missed a day? Just do the next one.</p>
       </div>
-      <div class="hero-spot" aria-hidden="true"><svg viewBox="0 0 60 150" fill="none"><rect x="18" y="4" width="24" height="40" rx="12" fill="#f7ede6"/><path d="M10 34c0 12 9 20 20 20s20-8 20-20" stroke="#c4adc7" stroke-width="3" stroke-linecap="round"/><path d="M30 54v84" stroke="#c4adc7" stroke-width="3"/><ellipse cx="30" cy="140" rx="18" ry="4" fill="#8f7896"/></svg></div>
-    </section>
-    <div class="grid g2" style="align-items:start">
-      <div class="card hl"><h2>Today’s run sheet</h2>
-        <div class="runsheet">${tasks.map(t => { const c = todayCount(t[0]), ok = c >= t[1]; return `<a href="${t[3]}" style="text-decoration:none;color:inherit"><div class="task ${ok ? 'done' : ''}"><div class="chk"></div><div class="t">${esc(t[2])}</div><span class="muted">${t[1] > 1 ? `${Math.min(c, t[1])} of ${t[1]}, ` : ''}${t[4]} min</span></div></a>`; }).join('')}</div>
-        <p class="muted" style="margin-top:14px">Warm up first, speak last. Missed a day? Just do the next one. Daily time: ${S.settings.dailyMinutes} minutes (<a href="#/coach">change</a>).</p></div>
-      <div class="grid">${focusCard()}${weeklyCard()}</div>
+      <div class="grid" style="align-content:start">
+        <a class="card" href="${focus.link[0]}"><p class="eyebrow">${icon('spark')} Focus of the day</p><h2>${esc(focus.skill)}</h2><p class="muted" style="margin:0">${esc(focus.reason.replace(/^./, c => c.toUpperCase()))}. Drill: <b>${esc(focus.link[1])}</b></p></a>
+        <a class="card" href="#/calm?t=sigh"><p class="eyebrow">${icon('calm')} Nervous right now?</p><h2>60-second calm reset</h2><p class="muted" style="margin:0">Two inhales, one long exhale. The fastest breathing method for lowering stress in a 2023 Stanford trial.</p></a>
+        <a class="card" href="#/real"><p class="eyebrow">${icon('real')} Real life</p><h2>Review a real conversation</h2><p class="muted" style="margin:0">Upload a meeting or call. SpeakForge finds your voice and scores how you really speak.</p></a>
+      </div>
     </div>
-    <h2 style="margin-top:44px">How you’re changing</h2>
-    <div class="grid g2">
-      <div class="card"><h3>Speed and freezes per speech</h3><canvas id="c1"></canvas></div>
-      <div class="card"><h3>Restarts and fillers per speech</h3><canvas id="c2"></canvas></div>
-      <div class="card"><h3>Time to find a word (lower is better)</h3><canvas id="c3"></canvas></div>
-      <div class="card"><h3>Clarity and volume per speech</h3><canvas id="c4"></canvas></div>
-    </div>`;
-  lineChart($('#c1'), [{ label: 'words per minute', values: speakSessions.map(r => r.wpm), color: '#7c5cff' }, { label: 'freezes', values: speakSessions.map(r => r.freezes), color: '#f59e0b' }]);
-  lineChart($('#c2'), [{ label: 'restarts', values: speakSessions.map(restartsOf), color: '#ef4444' }, { label: 'fillers', values: speakSessions.map(r => r.fillers), color: '#06b6d4' }]);
-  lineChart($('#c3'), [{ label: 'milliseconds', values: S.naming.map(n => n.avgMs), color: '#22c55e' }]);
-  lineChart($('#c4'), [{ label: 'clarity %', values: speakSessions.filter(r => r.clarity != null).map(r => r.clarity), color: '#7c5cff' }, { label: 'in volume zone %', values: speakSessions.filter(r => r.zonePct != null).map(r => r.zonePct), color: '#06b6d4' }]);
+    <div class="section-title"><h2>Your five problems</h2><span class="spacer"></span><a href="#/progress">All skills</a></div>
+    <div class="problems">${groupScores(sc).map(([g, v, link]) => `<a class="problem" href="${link[0]}"><span class="lbl">${esc(g)}</span><span class="n" style="color:${v == null ? 'var(--dusk)' : v >= 75 ? 'var(--seaglass)' : v >= 50 ? 'var(--brass)' : 'var(--coral)'}">${v ?? '–'}</span><div class="bar"><i style="width:${v ?? 0}%;background:${v == null ? 'transparent' : v >= 75 ? 'var(--seaglass)' : v >= 50 ? 'var(--brass)' : 'var(--coral)'}"></i></div><span class="faint">${v == null ? 'Not measured yet' : 'out of 100'}</span></a>`).join('')}</div>
+    <div class="section-title"><h2>How you’re changing</h2></div>
+    <div class="grid g2c">
+      <div class="card"><h3>Fillers and restarts per minute</h3><canvas id="c1"></canvas></div>
+      <div class="card"><h3>Explanation clarity (0-10)</h3><canvas id="c2"></canvas></div>
+      <div class="card"><h3>Vague words per 100 words</h3><canvas id="c3"></canvas></div>
+      <div class="card"><h3>Nerves on stage, before and after (0-100)</h3><canvas id="c4"></canvas></div>
+    </div><br>${weeklyCard()}`;
+  if (next) $('#startw').onclick = () => startWorkout(tasks);
+  const rs = S.sessions.map(s => s.rounds[s.rounds.length - 1]).filter(r => r.speakSec >= 10);
+  const per = (r, k) => +((r[k] || 0) / Math.max(r.speakSec / 60, 0.25)).toFixed(1);
+  lineChart($('#c1'), [{ label: 'fillers/min', values: rs.map(r => per(r, 'fillers')), color: '#b9a6ff' }, { label: 'restarts/min', values: rs.map(r => +(Math.max(r.repetitions || 0, r.selfRestarts || 0) / Math.max(r.speakSec / 60, 0.25)).toFixed(1)), color: '#ff8a7a' }]);
+  lineChart($('#c2'), [{ label: 'explain gym', values: (S.explains || []).map(e => e.score), color: '#f2b544' }, { label: 'speeches (AI)', values: rs.map(r => r.aiClarity).filter(v => v != null), color: '#7fd1c4' }]);
+  lineChart($('#c3'), [{ label: 'vague/100', values: [...rs.map(r => r.vaguePer100), ...(S.reallife || []).map(x => x.metrics?.vaguePer100)].filter(v => v != null), color: '#f2b544' }]);
+  lineChart($('#c4'), [{ label: 'before', values: (S.exposures || []).map(e => e.before), color: '#ff8a7a' }, { label: 'after', values: (S.exposures || []).map(e => e.after), color: '#7fd1c4' }]);
 }
 
-const DRILLS = [
-  ['#/words', 'Find words fast', 'Rapid naming, Taboo, category and synonym sprints. For the moment a word disappears mid-sentence.'],
-  ['#/mouth', 'Clear speech', 'Warm-up, pa-ta-ka, tongue twisters, sound pairs for your first language, pen-in-mouth reading.'],
-  ['#/voice', 'Volume and nerves', 'Find your confident volume, climb the exposure ladder, breathe before you speak.'],
-  ['#/shadow', 'Shadowing', 'Speak along with a native model, sentence by sentence or with your own Theo and Mona clips.'],
-  ['#/phrases', 'Phrases', 'Ready-made chunks and your lost words, reviewed just before you would forget them.'],
-  ['#/theo', 'Learn from Theo', 'His measured pace, pauses and accent, an accent lab with real measurement, and his seven hook patterns.'],
+const TRACKS = [
+  { ic: 'word', title: 'I forget a word and restart the sentence', what: 'Retrieve words faster, and when one escapes, talk around it instead of rewinding.', why: 'Retrieval practice makes words faster to access; circumlocution can be trained (Dörnyei 1995).',
+    drills: [['#/words?t=naming', 'Rapid word retrieval'], ['#/words?t=taboo', 'Taboo'], ['#/speak?mode=noRestart', 'No-Restart challenge'], ['#/phrases', 'Rescue phrases']] },
+  { ic: 'gem', title: 'I use basic words', what: 'Find the vague words in your own speech and replace them with precise ones, out loud, in a sentence.', why: 'Words you need, choose and use yourself are remembered best (involvement load: Laufer & Hulstijn 2001).',
+    drills: [['#/words?t=upgrade', 'Word upgrade'], ['#/words?t=better', 'Say it better'], ['#/words?t=naming&type=precise', 'Precise word retrieval']] },
+  { ic: 'filler', title: 'I say “um” and “basically” a lot', what: 'Notice every filler, then replace it with a silent pause. This is the habit-reversal method.', why: 'Awareness training plus a competing response cut filled pauses in public speakers (Mancuso & Miltenberger 2016).',
+    drills: [['#/fillers?t=aware', 'Spot your fillers'], ['#/fillers?t=live', 'Filler-free minute'], ['#/fillers?t=starts', 'Fresh starts']] },
+  { ic: 'explain', title: 'My explanations get confusing', what: 'Plan for 20 seconds, lead with the point, give one example, stop. Then hear what the listener actually understood.', why: 'Planning time improves fluency and structure (Foster & Skehan 1996); repeating a task with feedback improves it (Bygate 2001).',
+    drills: [['#/explain?f=answer', 'Answer first'], ['#/explain?f=feynman', 'Explain to a 12-year-old'], ['#/explain?f=answer&one=1', 'One-sentence headline'], ['#/partner', 'Confused listener']] },
+  { ic: 'calm', title: 'I get nervous in front of people', what: 'Calm your body, test your fears in front of a virtual audience that grows, then take it into real life.', why: 'Graded and virtual-audience exposure reduce public-speaking anxiety (Anderson et al. 2005); cyclic sighing calms fastest (Balban et al. 2023).',
+    drills: [['#/calm?t=sigh', 'Calm reset'], ['#/calm?t=audience', 'Virtual audience'], ['#/calm?t=video', 'Video self-review'], ['#/calm?t=ladder', 'Real-world ladder']] },
+  { ic: 'voice', title: 'I want a clear, strong voice', what: 'Pause between thought groups, stress the key word, open your mouth, project.', why: 'Rhythm and pausing practice improved how easy learners were to understand more than sound drills did (Derwing et al. 1998).',
+    drills: [['#/mouth?t=groups', 'Thought groups'], ['#/mouth?t=pen', 'Pebble drill'], ['#/mouth?t=twister', 'Tongue twisters'], ['#/mouth?t=pairs', 'Sound pairs'], ['#/calm?t=zone', 'Volume zone']] },
 ];
 
-function drills(main) {
-  main.innerHTML = `<h1>Drills</h1><p class="sub">Short, focused practice for one skill at a time. Your run sheet on Today picks them for you; come here when you want more.</p>
-    <div class="grid">${DRILLS.map(([href, name, what]) => `<a href="${href}" style="text-decoration:none;color:inherit"><div class="card"><h2 style="margin-bottom:6px">${name}</h2><p class="muted" style="margin:0;font-size:15px">${what}</p></div></a>`).join('')}</div>`;
-}
-function plan(main) {
-  const week = currentWeek(), phase = currentPhase();
-  main.innerHTML = `
-    <h1>Your six-month plan</h1>
-    <p class="sub">26 weeks, 4 phases, ~35 min/day. Built from the research on fluency (4/3/2, formulaic chunks, shadowing), articulation (motor drills), and anxiety (graded exposure), plus Mona's (babystepstothemic) proven routine.</p>
-    <div class="card row"><span>Start date:</span><input type="date" id="sd" value="${S.startDate}"><button class="ghost small" id="sds">Save</button><span class="muted">You are in <b>week ${week}</b> · ${esc(phase.name)}</span></div><br>
-    <div class="grid g2">${PHASES.map(p => `<div class="card phase ${p === phase ? 'now' : ''}"><h2>Weeks ${p.weeks[0]}-${p.weeks[1]} · ${esc(p.name)}</h2><p>${esc(p.goal)}</p>
-      <p class="muted">${Array.from({ length: p.weeks[1] - p.weeks[0] + 1 }, (_, i) => p.weeks[0] + i).map(w => `<span class="pill" style="${w === week ? 'background:var(--accent);color:#fff' : ''}">W${w}: ${esc(WEEK_THEMES[w])}</span>`).join(' ')}</p></div>`).join('')}</div><br>
-    <div class="grid g2">
-      <div class="card"><h2>Daily routine (~35 min)</h2><table>
-        <tr><td>3 min</td><td>Warm-up (Clear speech) + box breathing if nervous</td></tr>
-        <tr><td>5 min</td><td>Articulation drill of the week (pen, twisters, minimal pairs)</td></tr>
-        <tr><td>10 min</td><td>Shadowing (Theo/Mona clip or built-in scripts)</td></tr>
-        <tr><td>5 min</td><td>Find words fast (naming / Taboo / sprints)</td></tr>
-        <tr><td>3 min</td><td>Phrase review</td></tr>
-        <tr><td>8 min</td><td>Speak: 1-min topics, 4/3/2, PREP or Creator</td></tr>
-        <tr><td>1 min</td><td>Rate nervousness, listen back to ONE recording</td></tr></table></div>
-      <div class="card"><h2>Weekly rhythm</h2><table>
-        <tr><td>Mon-Fri</td><td>Daily mission (Today tab)</td></tr>
-        <tr><td>Sat</td><td><b>Benchmark speech:</b> “Introduce yourself and what you do” (1 min, same topic every week). Day 1 vs day 180 will shock you.</td></tr>
-        <tr><td>Sun</td><td>Real-world rung on the Exposure Ladder (from month 2: Toastmasters / tutor call / meeting)</td></tr>
-        <tr><td>Monthly</td><td>Deep analysis: download your benchmark recording and run <code>tools\\analyze_me.py</code> (compares you to Theo's numbers)</td></tr></table></div>
-    </div><br>
-    <div class="card"><h2>Targets</h2><table><tr><th>Metric</th><th>Month 1</th><th>Month 3</th><th>Month 6</th><th>Theo</th></tr>
-      <tr><td>Freezes (&gt;1.8 s) per minute</td><td>&lt; 4</td><td>&lt; 2</td><td>&lt; 1</td><td>~0</td></tr>
-      <tr><td>Restarts per minute</td><td>&lt; 4</td><td>&lt; 2</td><td>&lt; 1</td><td>rare</td></tr>
-      <tr><td>Words per minute (impromptu)</td><td>110-130</td><td>130-150</td><td>150-170</td><td>~190</td></tr>
-      <tr><td>Rapid naming avg</td><td>&lt; 2500 ms</td><td>&lt; 1800 ms</td><td>&lt; 1400 ms</td><td>-</td></tr>
-      <tr><td>Volume zone %</td><td>50%</td><td>70%</td><td>85%</td><td>-</td></tr>
-      <tr><td>Exposure ladder</td><td>L1-L3</td><td>L4-L6</td><td>L8-L10</td><td>-</td></tr></table></div>`;
-  $('#sds').onclick = () => { S.startDate = $('#sd').value || dayKey(); save(); toast('Saved'); plan(main); };
+function practice(main) {
+  main.innerHTML = `<p class="eyebrow">Practice</p><h1>Train the exact problem</h1>
+    <p class="sub">Every drill here is backed by research or used by great speakers. Today’s workout picks them for you; come here when you want more reps on one thing.</p>
+    <div class="grid g2">${TRACKS.map(t => `<div class="card track"><div class="ic">${icon(t.ic)}</div><div><h2>${esc(t.title)}</h2><p class="muted" style="margin:0 0 6px">${esc(t.what)}</p><p class="why">${esc(t.why)}</p>
+      <div class="drills">${t.drills.map(([h, l]) => `<a href="${h}">${esc(l)}</a>`).join('')}</div></div></div>`).join('')}</div>
+    <div class="section-title"><h2>Always useful</h2></div>
+    <div class="grid g3">
+      <a class="card" href="#/speak"><h3>${icon('mic')} Speak</h3><p class="muted" style="margin:0">1-minute topics, 4/3/2, PREP, question chain, reels, in front of a virtual audience.</p></a>
+      <a class="card" href="#/partner"><h3>${icon('phrases')} Conversation partner</h3><p class="muted" style="margin:0">Talk with Gemma by voice: interviews, stand-ups, small talk, a confused listener.</p></a>
+      <a class="card" href="#/shadow"><h3>${icon('shadow')} Shadowing</h3><p class="muted" style="margin:0">Speak along with a model voice, Theo and Mona clips, or classic speeches.</p></a>
+      <a class="card" href="#/phrases"><h3>${icon('phrases')} Phrases and your words</h3><p class="muted" style="margin:0">Spaced repetition of chunks, lost words and upgrades, said in a sentence.</p></a>
+      <a class="card" href="#/masters"><h3>${icon('masters')} Learn from the best</h3><p class="muted" style="margin:0">What Lincoln, Churchill, Feynman, Theo and Mona actually did, each linked to a drill.</p></a>
+    </div>`;
 }
 
-function mediaTag(r, preload, url) {
-  const u = url || URL.createObjectURL(r.blob);
-  return r.video || r.blob.type.startsWith('video') ? `<video controls preload="${preload}" src="${u}" style="width:100%;max-height:300px;border-radius:10px"></video>` : `<audio controls preload="${preload}" src="${u}" style="width:100%"></audio>`;
-}
-
-async function journal(main) {
-  main.innerHTML = `<h1>Recordings</h1><p class="sub">Every speech is saved locally (never uploaded). Listen to your first vs latest. That is your proof of progress.</p>
-    <div id="cmp"></div><div class="card"><h2>Recordings</h2><div id="recs" class="muted">Loading…</div></div><br>
-    <div class="card"><h2>Speech history</h2><div id="hist"></div></div><br>
-    <div class="card"><h2>Your data</h2><div class="row"><button class="ghost" id="exp">Export progress (JSON)</button><label class="btn" style="background:var(--panel2);border:1px solid var(--line)">Import<input type="file" id="imp" accept=".json" class="hidden"></label><span class="spacer"></span><button class="red small" id="reset">Reset everything</button></div>
-    <p class="muted">Progress lives in this browser (localStorage + IndexedDB). Export weekly as a backup.</p></div>`;
-  let recs = [];
-  try { recs = await listRecordings(); } catch { /* unsupported */ }
-  const bench = recs.filter(r => r.kind === 'benchmark');
-  const sp = bench.length >= 2 ? bench : recs.filter(r => r.kind?.startsWith('speak') || r.kind === 'benchmark');
-  if (sp.length >= 2) {
-    const first = sp[sp.length - 1], latest = sp[0];
-    const card = (r, label, cls) => `<div class="card ${cls}"><h3>${label}: ${new Date(r.ts).toLocaleDateString()}</h3><p class="muted">${esc(r.title)}</p>${mediaTag(r, 'auto')}
-      <p class="muted">${r.metrics?.wpm ?? '-'} wpm · ${r.metrics?.freezes ?? '-'} freezes · ${Math.max(r.metrics?.repetitions || 0, r.metrics?.selfRestarts || 0)} restarts${r.metrics?.clarity != null ? ` · ${r.metrics.clarity}% clarity` : ''}</p></div>`;
-    $('#cmp').innerHTML = `<h2>${bench.length >= 2 ? 'Benchmark: first vs latest' : 'First vs latest speech'}</h2><div class="grid g2">${card(first, 'First', '')}${card(latest, 'Latest', 'hl')}</div><br>`;
-  }
-  $('#recs').innerHTML = recs.length ? `<table>${recs.slice(0, 60).map(r => {
-    const u = URL.createObjectURL(r.blob);
-    const ext = r.blob.type.includes('mp4') ? (r.video ? 'mp4' : 'm4a') : 'webm';
-    return `<tr><td>${new Date(r.ts).toLocaleString()}<br><span class="muted">${r.video ? 'Video: ' : ''}${esc(r.title)}</span></td><td>${mediaTag(r, 'none', u)}</td>
-      <td class="muted">${r.metrics ? `${r.metrics.wpm} wpm<br>${r.metrics.freezes} freezes` : ''}</td>
-      <td><a href="${u}" download="speakforge-${dayKey(new Date(r.ts))}-${r.id}.${ext}">download</a><br><a href="#" data-del="${r.id}">delete</a></td></tr>`;
-  }).join('')}</table>` : 'No recordings yet. Do a speech.';
-  $('#recs').querySelectorAll('[data-del]').forEach(a => a.onclick = async e => { e.preventDefault(); await deleteRecording(a.dataset.del); journal(main); });
-  $('#hist').innerHTML = S.sessions.length ? `<table><tr><th>Date</th><th>Mode</th><th>Topic</th><th>WPM</th><th>Freezes</th><th>Restarts</th><th>Fillers</th><th>Nerves</th></tr>
-    ${S.sessions.slice().reverse().slice(0, 50).map(s => { const r = s.rounds[s.rounds.length - 1]; return `<tr><td>${new Date(s.ts).toLocaleDateString()}</td><td>${esc(s.mode)}</td><td>${esc(s.topic)}</td><td>${r.wpm}</td><td>${r.freezes}</td><td>${Math.max(r.repetitions || 0, r.selfRestarts || 0)}</td><td>${r.fillers}</td><td>${s.anxBefore ?? '-'}→${s.anxAfter ?? '-'}</td></tr>`; }).join('')}</table>` : '<p class="muted">No speeches yet.</p>';
-  $('#exp').onclick = () => {
-    const a = document.createElement('a');
-    const safe = { ...S, ai: { ...S.ai, key: '' } };
-    a.href = URL.createObjectURL(new Blob([JSON.stringify(safe, null, 1)], { type: 'application/json' }));
-    a.download = `speakforge-progress-${dayKey()}.json`;
-    a.click();
-  };
-  $('#imp').onchange = async e => {
-    const f = e.target.files[0];
-    if (!f) return;
-    try { replaceState(JSON.parse(await f.text())); toast('Imported'); journal(main); } catch { toast('Invalid file'); }
-  };
-  $('#reset').onclick = () => { if (confirm('Delete all progress (recordings stay)?')) { replaceState({}); journal(main); } };
-}
-
-const ROUTES = { home, plan, journal, drills, speak: speak.render, words: words.render, mouth: mouth.render, voice: voice.render, shadow: shadow.render, phrases: phrases.render, coach: coach.render, skills: skills.render, theo: theo.render };
+const ROUTES = {
+  home, practice, drills: practice, speak: speak.render, words: words.render, mouth: mouth.render, calm: calm.render, voice: calm.render,
+  shadow: shadow.render, phrases: phrases.render, settings: coach.render, coach: coach.render, partner: coach.renderPartner,
+  progress: progress.render, skills: progress.render, journal: (m, p) => progress.render(m, { ...p, t: 'recordings' }), plan: (m, p) => progress.render(m, { ...p, t: 'plan' }),
+  theo: theo.render, masters: masters.render, explain: explain.render, fillers: fillers.render, real: real.render,
+};
 
 function route() {
   stopAllAudio();
@@ -216,16 +142,26 @@ function route() {
   const [name, qs] = raw.split('?');
   const params = Object.fromEntries(new URLSearchParams(qs || ''));
   const fn = ROUTES[name] || home;
-  document.querySelectorAll('nav a').forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#/' + name || (a.dataset.also || '').split(',').includes(name)));
+  document.querySelectorAll('#nav a, #tabbar a').forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#/' + name || (a.dataset.also || '').split(',').includes(name)));
   const main = document.getElementById('app');
   window.scrollTo(0, 0);
+  main.style.animation = 'none'; void main.offsetWidth; main.style.animation = '';
   try { fn(main, params); main.focus({ preventScroll: true }); } catch (e) { main.innerHTML = `<div class="card bad">Something broke: ${esc(e.message)}</div>`; console.error(e); }
+  renderBar(name);
+}
+
+function renderBar(name) {
+  const slot = document.getElementById('wslot');
+  slot.innerHTML = workoutBar(name);
+  slot.querySelectorAll('[data-skip]').forEach(a => a.addEventListener('click', () => skipStep(a.dataset.skip)));
 }
 
 window.addEventListener('hashchange', route);
+window.addEventListener('sf:activity', () => { const name = (location.hash.replace(/^#\/?/, '') || 'home').split('?')[0]; if (name === 'home') return; renderBar(name); });
+renderNav();
 if (!(window.SpeechRecognition || window.webkitSpeechRecognition)) {
   const w = document.getElementById('warn');
-  w.textContent = 'This browser has no built-in speech recognition. Use Safari, Chrome or Edge, or start SpeakForge with start.sh to recognise speech privately on your computer.';
+  w.textContent = 'This browser has no built-in speech recognition. Use Safari, Chrome or Edge, or start SpeakForge with ./start.sh to recognise speech privately on your computer.';
   w.classList.remove('hidden');
 }
 if (window.speechSynthesis) speechSynthesis.onvoiceschanged = () => {};
@@ -254,6 +190,6 @@ function renderEngine() {
   const el = document.getElementById('engine');
   if (!el) return;
   el.innerHTML = LOCAL.ok
-    ? `Private mode: everything runs on this computer.<br>Speech: <b>${esc(LOCAL.whisper || 'browser')}</b>${LOCAL.whisper && !LOCAL.ready ? ' (loading…)' : ''}${LOCAL.ollama ? `<br>Coach: <b>${esc(LOCAL.model || 'Ollama')}</b>` : ''}`
-    : 'Browser mode. Start it with start.sh to run everything on your computer.';
+    ? `<span class="dot"></span>Private mode: everything runs on this computer.<br>Speech: <b>${esc(LOCAL.whisper || 'browser')}</b>${LOCAL.whisper && !LOCAL.ready ? ' (loading…)' : ''}${LOCAL.ollama ? `<br>Coach: <b>${esc(LOCAL.model || 'Ollama')}</b>` : ''}`
+    : '<span class="dot off"></span>Browser mode. Start ./start.sh to run everything privately on your computer.';
 }

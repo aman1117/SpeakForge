@@ -1,213 +1,128 @@
-# Your 6-Month Speaking Transformation Plan
+# Your 6-Month Speaking Plan
 
-*Built 22 Nov 2026 for: fluent, clear, confident English (target: Instagram creator level, Theo-style delivery).*
-*Companion app: **SpeakForge**. On your Mac Studio run `./setup_mac.sh` once, then `./start.sh` daily: speech recognition, analysis and the AI coach all run privately on your Mac. Browser version: https://aman1117.github.io/SpeakForge/*
-
-**Theo track:** the app's *Learn from Theo* screen turns the Theo analysis into practice: his measured numbers compared with yours after every speech, an accent lab for his four American-accent features (with real formant measurement on your Mac), his seven hook patterns and his most-used phrases.
+*For: strong, fluent command of spoken English in 4–6 months. Models: Theo Browne (t3.gg) for delivery, Mona (@babystepstothemic) for the daily routine, and the great orators and explainers for structure.*
+*Companion app: **SpeakForge**. Run `./setup_mac.sh` once, then `./start.sh` every day. Speech recognition, speaker recognition and the AI coach (Gemma 4) all run privately on your Mac.*
 
 ---
 
-## 1. Diagnosis: what is actually happening with your 5 problems
+## 1. The five problems, and what actually fixes each one
 
-Researchers split speaking **fluency** into three separate skills (Skehan; Tavakoli & Skehan; Segalowitz):
-
-| Fluency type | Meaning | Your symptom |
-|---|---|---|
-| **Speed fluency** | How fast you produce speech | Slow or uneven pace |
-| **Breakdown fluency** | How often and how long you pause, especially *mid-phrase* | Freezing while searching for a word |
-| **Repair fluency** | False starts, restarts, repetitions, reformulations | **"I stop the sentence and start a new one"** ← your #1 problem |
-
-### Problem 1: "I forget a word, can't recall it for a few seconds, so I restart the sentence"
-- **Why it happens:** In Levelt's speech-production model, you plan the *idea*, then pull words from memory (lexical retrieval), then pronounce. In a second language, retrieval is slower and less automatic. When one word fails, your brain treats the whole sentence as failed and **restarts**. Each restart costs 2–4 seconds and sounds "broken".
-- **The key insight:** Native speakers *also* lose words all the time. They just **don't restart**. They **bridge**: "the… what's it called… the thing you use to…", "basically…", "what I mean is…". This is called a **communication strategy** (circumlocution/paraphrase), and research (Dörnyei 1995 and later strategy-training studies) shows it **can be trained**.
-- **The fix (two parts):**
-  1. **Faster retrieval:** rapid naming, category and synonym sprints, and spaced repetition of phrases (retrieval practice makes words faster to access).
-  2. **Better repair:** rescue phrases + Taboo (describing a word without saying it) + **never-restart drills**. The SpeakForge Speaking Arena shows a **BRIDGE card and a soft beep** the moment you go silent (1.2–3.5 s, your choice).
-  3. **Awareness:** press **SPACE** (or tap ↺) every time you catch yourself restarting. Self-monitoring is a core technique in fluency therapy: you can't fix what you don't notice.
-  4. **Personal word list:** after every speech, type the words you lost (or let the AI find them). They go into **My lost words** and come back in Rapid naming and the Phrase Bank until they're instant.
-  5. **Real conversation:** Question chain (5 spoken questions back-to-back) and the AI conversation partner train the same skills under real back-and-forth pressure.
-
-**The in-the-moment protocol: P.B.C.** (memorise this)
-> **P**ause (½ second, calm) → **B**ridge ("the thing that… / what I mean is…") → **C**ontinue the SAME sentence (describe, simplify, or skip the detail).
-> **Never rewind.** A described word sounds fluent. A restart sounds broken.
-
-### Problem 2: Articulation
-Articulation is a **motor skill**: lips, tongue and jaw moving precisely and fast. Like any motor skill it improves with daily, specific, repeated drills (warm-up → slow exaggerated → normal → fast). Indian-English-specific sound contrasts to train: **V/W, TH, retroflex T/D → alveolar T/D, the American R, short vs long vowels, and stress-timed rhythm with reduced "uh" (schwa) syllables**. SpeakForge orders minimal pairs by your **first language**, lets you compare **model vs you** back-to-back, and tracks a **clarity %** (how confidently the recogniser understood you) in every speech.
-
-### Problem 3: Nervous to speak loudly in English
-(You wrote "my English is not that bad". I think you meant "not that good". Either way, the fear is about being *judged*, not about your real level.)
-This is **Foreign Language Anxiety** (Horwitz, Horwitz & Cope 1986): fear of negative evaluation + communication apprehension. It creates a loop: *nervous → quiet voice → sounds unsure → listener asks "sorry?" → more nervous*.
-The evidence-based fixes:
-- **Graded exposure:** repeated, gradually harder speaking situations (the Exposure Ladder + **real-world moment log** in the app). **Camera mode** adds the feeling of being watched, which is exactly what reels need.
-- **Deliberate volume training:** projection is a physical skill; practise it alone first (Volume Zone), then get **live "speak up" nudges** during every Arena speech.
-- **Physiological calming:** box breathing before speaking (the Arena's optional **calm-down ritual** does it with a self-talk line).
-- **Positive self-talk + measuring "before vs after" nervousness:** you'll see the "after" number drop, which proves speaking itself reduces fear.
-- **Low-stakes community:** Toastmasters (what Mona did every week).
-
-### Problem 4: A system to get dramatically better in 4–6 months
-SpeakForge + this plan. The **Today** mission adapts to your daily time (10/20/35/60 min), adds a Saturday benchmark and a Sunday real-world task, and shows a **focus of the day** (your weakest skill) plus a **weekly report**. Practise on your phone too, and set a daily reminder with `.\start.ps1 -Reminder 20:00`.
-
-### Problem 5: "What skills does great speaking even need?" The 12 skills
-The **Skills** screen in the app shows your live 0–100 score for each of these, computed from your practice data.
-
-| # | Skill | What it is | How you train it |
+| Your problem | What is going on | What fixes it (evidence) | Where in SpeakForge |
 |---|---|---|---|
-| 1 | Breath support | Steady air so your voice doesn't fade/shake | Box breathing, "count to 20 on one breath" |
-| 2 | Volume & projection | Heard easily without shouting | Confidence Lab: volume zone, projection ladder |
-| 3 | Articulation | Precise lip/tongue/jaw movement | Warm-up, pen-in-mouth, tongue twisters, pa-ta-ka |
-| 4 | Pronunciation (sounds) | V/W, TH, R, vowels | Minimal pairs |
-| 5 | Prosody | Stress, rhythm, pitch, intonation | Shadowing, stress-the-key-word reading |
-| 6 | Pausing | Pause *between* ideas, never inside | 10-word sentences, slash-marked reading |
-| 7 | Lexical retrieval | Finding words fast | Rapid naming, category and synonym sprints |
-| 8 | Repair fluency | Recovering without restarting | No-Restart mode, BRIDGE cards, Taboo |
-| 9 | Formulaic chunks | Ready-made phrases ("to be clear", "which means") | Phrase Bank (spaced repetition) |
-| 10 | Structure | Hook → point → reason → example → close | PREP mode, 4/3/2, Creator mode |
-| 11 | Confidence & presence | Speaking up despite nerves; energy; eye contact | Exposure ladder, Toastmasters, filming daily |
-| 12 | Listening & imitation | Hearing and copying native patterns | Shadowing Theo/Mona clips |
+| **1. I forget a word, freeze, and restart the sentence** | Slow *lexical retrieval* (Levelt's model) plus poor *repair*: when one word fails, you treat the whole sentence as failed. | Retrieval practice makes words faster to access. Communication strategies (talking around a word) can be trained (Dörnyei 1995). Fluent speakers lose words too; they never rewind. | Rapid retrieval (with *your* lost words), Taboo, No-Restart challenge, live rescue-phrase cue after a silence |
+| **2. I use basic words** | Your active vocabulary is much smaller than your passive one. Words you *recognise* aren't the words you *reach for*. | Words you need, search for and choose yourself stick far better (Laufer & Hulstijn 2001, involvement load). Productive use in your own sentences beats word lists. | **Word upgrade** finds the vague words in *your own transcripts* and makes you re-say the sentence with a precise word. **Say it better**. Upgrades go into spaced repetition. |
+| **3. I use too many fillers** | A habit. Most people hear only half of their own fillers. | **Habit reversal**: awareness training plus a competing response (a silent pause) cut filled pauses in public speakers (Mancuso & Miltenberger 2016; Spieler & Miltenberger 2017). Toastmasters' Ah-Counter is the same idea. | **Filler lab**: 1) catch your own fillers on playback (scored against Whisper), 2) filler-free minute with a live cue, 3) fresh starts. Live filler cue in every speech. |
+| **4. My explanations get confusing, then I add more words and make it worse** | No plan, the point comes last, and the *curse of knowledge* (Heath & Heath) makes you skip steps, so you then backtrack. | Answer first (Pyramid Principle / BLUF). Planning time improves fluency and structure (Foster & Skehan 1996; Ellis 2009). Repeating the task straight after feedback improves it (Bygate 2001). Checking what the listener actually understood exposes the gap. | **Explain gym**: plan → explain → "what a listener heard" → 5-point rubric → redo with one fix. Confused-listener conversation. One-sentence headlines. |
+| **5. I get nervous in front of many people** | Public-speaking anxiety: you predict disaster, avoid, and never learn that it doesn't happen. You also believe your nerves are visible. | Graded exposure and virtual-audience exposure (Anderson et al. 2005; Wallach et al. 2009). Testing the feared outcome (Craske et al. 2014). Video feedback with cognitive preparation (Harvey, Clark et al. 2000). Illusion of transparency (Savitsky & Gilovich 2003). Cyclic sighing (Balban et al. 2023). Calling it excitement (Brooks 2014). | **Calm on stage**: 60-second calm reset, a **virtual audience** growing from 1 friend to a tough auditorium with your feared outcome tested each time, video self-review, real-world ladder |
+
+**The in-the-moment protocol for losing a word: Pause → Bridge → Continue.**
+Pause half a second. Bridge with "the thing that…", "what I mean is…" or "it's like…". Continue the *same* sentence. A word you describe sounds fluent; a restarted sentence sounds broken.
+
+**For explaining: Point → Why → Example → Point.**
+Say the answer in your first sentence (under 20 words). Give one or two reasons. Give one concrete example. Say the answer again, then stop.
 
 ---
 
-## 2. What we can learn from Mona (@babystepstothemic)
+## 2. What was removed, and why
 
-Instagram needs a login, so I couldn't watch her reels directly. I studied her **website** (babystepstothemic.com) and a podcast interview instead. Her story: she was terrified of public speaking (blacked out during a 7-minute speech), trained for a year, documented it, and reached 300K+ followers, an ABC News feature and a stand-up set.
-
-**Her drills (all built into SpeakForge):**
-
-| Mona's drill | Her result | In SpeakForge |
-|---|---|---|
-| **1 minute on a random topic** daily (her 7.2M-view series) | Stopped going blank | Speaking Arena → 1-minute random topic |
-| **Shadowing for 100 days** (day 1 vs day 30 video) | Copied pace, energy, landing points | Shadowing Studio |
-| **Reading aloud daily** | Mouth muscle memory | Pen-in-mouth reading / Volume zone passages |
-| **Reading with a pen in the mouth** | Crisper articulation | Mouth Gym → Pen-in-mouth |
-| **Tongue twisters** ("final boss") | Agility | Mouth Gym → Tongue twisters |
-| **10-words-per-sentence** exercise | Stopped rambling | Speaking Arena → 10-word mode |
-| **Timed speeches using new vocab** | Active vocabulary | Phrase Bank + Speaking Arena |
-| **Rhythm, pitch, volume and pausing drills** | Vocal variety | Shadowing + Confidence Lab |
-| **Toastmasters every week** | Real-world confidence | Exposure Ladder (L5–L13) |
-| **Record yourself; notice fillers and mumbled words** | Awareness | Every session is recorded + transcript highlights |
-
-Her key mindset: *"You've been unconsciously training the way you talk your whole life. Speech is very much trainable. Miss a day? Don't quit. Do the next one."*
-
----
-
-## 3. The 26-week plan
-
-### Phase 1: Foundation (weeks 1–4)
-**Goal:** build the daily habit, take baseline measurements, learn the rescue phrases, find your voice volume.
-| Week | Theme | Focus |
-|---|---|---|
-| 1 | Baseline + breathing | Day 1: record the **benchmark** (see §5). Warm-up + box breathing daily. 1-min topics (easy). |
-| 2 | Volume & projection | Calibrate; volume zone daily; projection ladder. Exposure L1–L2. |
-| 3 | Mouth gym | Pen-in-mouth daily; pa-ta-ka baseline; tongue twisters at slow speed. |
-| 4 | Rescue phrases | Phrase Bank daily; **No-Restart** challenge 3×/week. Exposure L3 (voice note to a friend). |
-
-### Phase 2: Fluency engine (weeks 5–10)
-**Goal:** kill restarts and freezes; automate retrieval.
-| Week | Theme | Focus |
-|---|---|---|
-| 5 | 4/3/2 fluency | Quick 4/3/2 daily (Nation's technique: same talk, less time each round → automaticity). |
-| 6 | Taboo & circumlocution | 2 Taboo cards/day. |
-| 7 | V/W and TH | Minimal pairs daily + targeted twisters. |
-| 8 | Shadowing 10 min/day | Start your **100-day shadowing streak** (Theo clips). |
-| 9 | Rapid naming speed | 2 rounds/day; aim < 1,800 ms. |
-| 10 | Phrase chunks | Add 10 new chunks from Theo/AI feedback; use 3 in every speech. **Join Toastmasters** (L9). |
-
-### Phase 3: Expression (weeks 11–18)
-**Goal:** sound engaging: pausing, stress, pitch, structure, stories.
-| Week | Theme | Focus |
-|---|---|---|
-| 11 | Pausing with purpose | Mark pauses with "/" in shadow scripts; 10-word mode. |
-| 12 | Word stress & rhythm | Stress ONE key word per sentence; reduce small words to "uh". |
-| 13 | Pitch variety | Shadow at 1×, copying the melody; aim for pitch SD > 3 semitones (analyzer). |
-| 14 | PREP structure | PREP mode daily. |
-| 15 | Storytelling | "Tell a story about…" topics; setup → problem → turn → lesson. |
-| 16 | Flap T & R | "better, water, getting" + R benchmark passage. |
-| 17 | Opinions & debate | Hard topics; "to be fair / I would argue / the problem is". |
-| 18 | **Mid-point re-test** | Benchmark + analyzer; compare to day 1. Toastmasters Ice Breaker (L13). |
-
-### Phase 4: Creator mode (weeks 19–26)
-**Goal:** film confidently and post publicly.
-| Week | Theme | Focus |
-|---|---|---|
-| 19 | Hooks in 5 seconds | Creator mode; write 10 hooks in Theo's patterns ("If you had told me…", "Nobody talks about…"). |
-| 20 | Reel scripts | Bullet points only, never a word-for-word script. |
-| 21 | Filming confidence | Film every speech on your phone; watch it back. |
-| 22 | Speed under control | Push to 150–170 wpm while keeping clarity ≥ 90%. |
-| 23 | Q&A / live talk | Answer random questions in 30 s; Table Topics. |
-| 24 | Humour & energy | Exaggerate energy 20% above "normal". |
-| 25 | Public reels | Exposure L14: post publicly. |
-| 26 | **Final test** | Benchmark + analyzer. Post your "day 1 vs day 180" reel. |
-
-### Daily routine (~35 min)
-| Time | Block |
+| Removed | Why |
 |---|---|
-| 3 min | Warm-up (+ box breathing if nervous) |
-| 5 min | Articulation drill of the week |
-| 10 min | Shadowing |
-| 5 min | Word Lab |
-| 3 min | Phrase Bank |
-| 8 min | Speaking Arena |
-| 1 min | Rate nervousness; listen back to one recording |
+| XP and levels | Points for showing up don't measure skill. Progress is now measured from what you say: fillers per minute, explanation score, vague words, nerves. |
+| Pa-ta-ka speed test | It's a clinical tool for diagnosing speech disorders, not a training method. Its loudness-burst count was also unreliable. |
+| Category sprint, synonym sprint, emoji naming | Listing words in isolation trains the wrong skill. They're replaced by retrieval of mid-frequency words, word upgrades from your own speech, and "Say it better". |
+| Box breathing | Cyclic sighing lowered anxiety more than box breathing in a head-to-head trial (Balban et al. 2023). |
+| "Start with 'So,'" advice | That trains a filler at the start of a sentence. Now: open with your point. |
+| Affirmation ritual | Replaced by things with evidence: cyclic sighing, saying "I am excited" (reappraisal), and a reminder about the illusion of transparency. |
 
-Short on time? **Minimum viable day (10 min):** warm-up + one 1-minute topic + Phrase Bank. Never zero.
+Kept because they have evidence or come from great speakers: 4/3/2 (Nation 1989), shadowing (Hamada 2016–18), spaced repetition of ready-made phrases (Wood 2010), sound pairs, tongue twisters, the volume zone, Mona's 1-minute topics, the pebble/pen drill (Demosthenes), Theo's measured profile.
 
-### Weekly rhythm
-- **Mon–Fri:** daily mission (SpeakForge "Today" tab).
-- **Saturday:** benchmark speech, same topic every week: *"Introduce yourself and what you do"* (1 min).
-- **Sunday:** one real-world rung of the exposure ladder (from month 2: Toastmasters / tutor call / speaking up in a meeting).
+**Accent vs rhythm.** Practising rhythm, stress and pausing improved how easy learners were to understand more than drilling individual sounds (Derwing, Munro & Wiebe 1998). So SpeakForge now leads with **thought groups** (Churchill typed his speeches in short lines, one thought per breath). The American-accent lab stays inside *Learn from Theo* as an optional extra.
 
 ---
 
-## 4. Targets (measured by SpeakForge and the analyzer)
+## 3. The AI: why Gemma 4, and what it does
 
-| Metric | Month 1 | Month 3 | Month 6 | Theo (measured) |
-|---|---|---|---|---|
-| Freezes (> 1.8 s) per minute | < 4 | < 2 | < 1 | 0.5 |
-| Restarts per minute | < 4 | < 2 | < 1 | 0.3 |
-| Impromptu words/min | 110–130 | 130–150 | 150–170 | ~195 |
-| % pauses mid-phrase | < 30% | < 15% | < 8% | 3% |
-| Pitch variation (SD, semitones) | > 2 | > 2.7 | > 3.2 | 3.7–3.9 |
-| Statements ending with a fall | > 40% | > 50% | > 60% | 60–67% |
-| Rapid naming average | < 2,500 ms | < 1,800 ms | < 1,400 ms | - |
-| Volume-zone time | 50% | 70% | 85% | - |
-| Exposure ladder | L1–L3 | L4–L9 | L10–L15 | - |
+On your M5 Max (64 GB), the coach is **Gemma 4 26B** (`gemma4:26b`): a mixture-of-experts model with only about 4B active parameters, so it is fast. In a side-by-side test on a messy explanation:
 
----
+- **Gemma 4 26B** scored it honestly (point-first 0/2), restated the point the way a listener heard it, and wrote an excellent model answer, in about 14–21 s.
+- **Gemma 3 12B** was slower on feedback (33 s) and suggested a "correction" that changed nothing.
 
-## 5. Monthly benchmark + deep analysis
+Every AI call uses a **JSON schema enforced by Ollama**, so the output can't break the UI. The model stays loaded for 30 minutes.
 
-1. In the Speaking Arena, choose **Weekly benchmark**. Introduce yourself and what you do; after 60 s the **R benchmark** passage appears. Read it aloud:
-   > Her first word at work was learn. Thirty nerds were there, and the third person worked late. It hurt, but they learned a lot. Were they the first? It's certain. The girl who turned up first earned her first award, and her words were worth it.
-2. Journal shows your **first vs latest benchmark** side by side. **Download** the latest recording.
-3. Run:
-   ```powershell
-   cd SpeakForge
-   python tools\analyze_me.py "$HOME\Downloads\speakforge-....webm"
-   ```
-   You get a report comparing you with Theo on 10 metrics (validated: run on Theo's own audio it reproduces his numbers).
-
----
-
-## 6. Outside the app (multiplies your results)
-
-| What | Why | When |
+| Job | Model | Why |
 |---|---|---|
-| **Toastmasters** (find a club near you or online: toastmasters.org) | Weekly real-audience practice; Table Topics = impromptu speaking | From week 10 |
-| **ChatGPT / Copilot / Gemini voice mode** | Unlimited conversation partner; use the "Copy AI coach prompt" button after each speech | Daily from week 2 |
-| **Cambly / Preply tutor** (American accent) | Human feedback once a week | From month 2 |
-| **ELSA Speak / BoldVoice** | Phoneme-level pronunciation scoring | Optional, for R/TH/V-W |
-| **YouTube: Rachel's English, Hadar (Accent's Way)** | Accent lessons | Weekly |
-| **Theo / Mona clips** | Shadowing models | Daily |
-| **Mona's free random-topic spinner** (babystepstothemic.com) | Extra topics | Any time |
-| **Your Instagram** | Ultimate exposure: document the journey like Mona did ("day 1 of 180") | From week 19 (or earlier if brave!) |
+| Live transcription, filler/restart detection, word timings | Whisper large-v3-turbo (MLX) | More accurate than any LLM at speech-to-text, and it keeps the "um"s |
+| Who is speaking in a meeting, which voice is yours | SpeechBrain ECAPA voiceprints | 98–99% of words attributed to the right speaker on real 4-person meetings |
+| Pitch, pauses, formants | Praat | The same method used to measure Theo |
+| Feedback, explanation rubric, word upgrades, real-life review, conversation partner | Gemma 4 26B via Ollama | Best quality for its speed on Apple Silicon |
+
+Options: `SPEAKFORGE_LLM=gemma4:31b` gives a little more quality and is slower. `gemma4:12b` is for 16 GB Macs. OpenAI or Azure can also be used from Settings.
 
 ---
 
-## 7. Research basis (short)
-- **4/3/2 technique** (Nation 1989; de Jong & Perfetti 2011; later replications): repeating a talk under time pressure increases speech rate and reduces pauses.
-- **Formulaic sequences** (Wood 2010; recent explicit-instruction studies): learning chunks improves oral fluency.
-- **Shadowing** (Kadota; Hamada 2016–2018): improves comprehensibility, segmental and suprasegmental pronunciation.
-- **Communication-strategy training** (Dörnyei 1995): circumlocution/paraphrase can be taught and reduces breakdowns.
-- **Foreign Language Anxiety** (Horwitz et al. 1986; systematic reviews 2021): positive self-talk, cooperative practice and graded exposure reduce anxiety and improve performance.
-- **Diadochokinesis (pa-ta-ka)**: standard speech-therapy measure of articulation rate.
-- **Pausing:** non-native speakers pause longer and more often *within* phrases; native speakers pause at boundaries (e.g., Mandarin–English bilingual pause study, 2023; Theo measured 3% mid-phrase pauses).
+## 4. The daily workout (one button on Today)
+
+The workout adapts to your phase, your daily minutes (10/20/35/60) and your weakest skill. A bar at the top guides you from step to step. A typical Foundation day (35 min):
+
+| Step | Minutes |
+|---|---|
+| Calm reset (cyclic sighing) | 1 |
+| Mouth warm-up | 3 |
+| *Focus of the day* (your weakest skill) | 3–6 |
+| Rapid word retrieval | 3 |
+| **Explain gym** (answer first) | 6 |
+| 1-minute topic (Mona's daily drill) | 4 |
+| Filler-free minute | 3 |
+| Phrase review | 4 |
+| Volume zone | 3 |
+
+**Saturday:** benchmark speech (the same self-introduction every week; compare day 1 with day 180).
+**Sunday:** upload one real conversation from the week in **Real life**, plus one real-world rung.
+
+---
+
+## 5. The 26 weeks
+
+| Weeks | Phase | Goal |
+|---|---|---|
+| 1–4 | Foundation | Habit and baselines: answer first, filler awareness, rescue phrases, calm breathing, volume. Week 1: record your benchmark and upload your first real meeting. |
+| 5–10 | Fluency engine | Kill restarts and basic words: 4/3/2, Taboo, word upgrades from your own speech, explain like Feynman, fast retrieval, chunks. Join Toastmasters (or book a weekly tutor call) by week 10. |
+| 11–18 | Expression | Clear and engaging: thought groups, stress, stories, PREP, confused-listener drills, virtual audience up to level 4, real meetings reviewed weekly. Week 18: mid-point re-test. |
+| 19–26 | Creator mode | Perform: one-line headlines, reels on camera, video self-review, tough crowds (level 6), public posts. Week 26: day 1 vs day 180. |
+
+## 6. Targets (all measured by SpeakForge)
+
+| Measure | Month 1 | Month 3 | Month 6 |
+|---|---|---|---|
+| Fillers per minute (Whisper) | < 6 | < 3 | < 1.5 |
+| Restarts per minute | < 4 | < 2 | < 1 |
+| Explanation score | 5/10 | 7/10 | 8.5/10 |
+| Vague words per 100 | < 7 | < 4 | < 2.5 |
+| Word retrieval | < 2.5 s | < 1.8 s | < 1.4 s |
+| Virtual-audience level with nerves after ≤ 30 | 2 | 4 | 6 |
+| Real meetings: fillers per minute | track | −40% | −70% |
+
+---
+
+## 7. Learn from the best (each linked to a drill in the app)
+
+- **Demosthenes:** pebbles in the mouth, speaking over the sea → pebble drill, volume.
+- **Lincoln:** 272 words beat a two-hour speech → one-sentence headline.
+- **Churchill:** speech notes in short lines like a poem → thought groups.
+- **Martin Luther King Jr.:** repetition as structure you can hear.
+- **Feynman:** plain words plus one concrete example → explain to a 12-year-old.
+- **Patrick Winston:** promise what they'll gain, repeat the core idea three times, signpost, show a near miss (what it is NOT).
+- **Barbara Minto:** answer first.
+- **Chip and Dan Heath:** the curse of knowledge → confused listener.
+- **Toastmasters:** the Ah-Counter, Table Topics.
+- **Steve Jobs:** headline first, rule of three.
+- **Theo Browne:** short sentences, pauses at sentence boundaries, never rewinds.
+- **Mona:** daily 1-minute topics, 100 days of shadowing, recorded and reviewed.
+
+## 8. Outside the app
+
+- **Toastmasters** from week 10: real audience and Table Topics. Record it and upload it to Real life.
+- **Record your real meetings** (with permission) once a week. This is the most honest measure of progress.
+- A tutor call once a week from month 2 (Cambly or Preply).
+- Shadow Theo and Mona clips (Shadowing → *Your own clips*).
+- Post a "day 1 vs day 180" reel in week 26.

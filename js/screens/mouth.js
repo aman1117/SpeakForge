@@ -1,7 +1,11 @@
-import { S, save, logActivity, $, esc, pick, shuffle, mic, ensureMic, sleep, meterHtml, setMeter } from '../core.js';
-import { Listener, speechSupported, say, loop, calibrate, Recorder } from '../audio.js';
-import { similarity, missedWords, tokenize, countBursts, countWords, wordsPerMinute, L1_PRIORITY } from '../metrics.js';
+import { S, save, logActivity, ensureArr, $, esc, pick, shuffle, mic, ensureMic, sleep } from '../core.js';
+import { Listener, speechSupported, say, Recorder, loop, calibrate } from '../audio.js';
+import { similarity, missedWords, tokenize, countWords, wordsPerMinute, L1_PRIORITY, VoiceTracker, speechThreshold, parseGroups, pauseFit } from '../metrics.js';
 import { TONGUE_TWISTERS, MINIMAL_PAIRS, READING_PASSAGES } from '../content.js';
+import { THOUGHT_GROUPS } from '../library.js';
+import { LOCAL, postAudio } from '../local.js';
+import { scoreBlock } from '../ui.js';
+import { icon } from '../icons.js';
 
 const WARMUP = [
   ['Yawn + sigh, roll your shoulders. Relax the throat.', 20],
@@ -14,22 +18,23 @@ const WARMUP = [
   ['Hum “mmmm” then open into a loud “mmm-AHHH” ×5. Feel the buzz in your face.', 20],
 ];
 
-let tab = 'warmup';
+let tab = 'groups';
 
 export function render(main, params = {}) {
   if (params.t) tab = params.t;
   main.innerHTML = `
+    <p class="eyebrow"><a href="#/practice">Practice</a> · Clear voice</p>
     <h1>Clear speech</h1>
-    <p class="sub">Articulation is a <b>motor skill</b>: lips, tongue and jaw moving precisely and fast. Train it like a muscle: warm up, drill, then speed.</p>
+    <p class="sub">Two layers. <b>Rhythm</b>: pause between thought groups and stress one word in each; this matters most for being understood. <b>Articulation</b>: lips, tongue and jaw moving precisely, trained like a muscle.</p>
     <div class="tabs">
-      <button data-t="warmup">3-min warm-up</button><button data-t="ddk">Pa-ta-ka speed test</button>
-      <button data-t="twister">Tongue twisters</button><button data-t="pairs">Minimal pairs</button><button data-t="pen">Pen-in-mouth reading</button>
+      <button data-t="groups">Thought groups</button><button data-t="warmup">Warm-up</button><button data-t="pen">Pebble drill</button>
+      <button data-t="twister">Tongue twisters</button><button data-t="pairs">Sound pairs</button>
     </div><div id="pane"></div>`;
   main.querySelectorAll('.tabs button').forEach(b => {
     b.classList.toggle('on', b.dataset.t === tab);
     b.onclick = () => { tab = b.dataset.t; render(main); };
   });
-  ({ warmup, ddk, twister, pairs, pen })[tab]($('#pane'));
+  ({ warmup, groups, twister, pairs, pen })[tab]($('#pane'));
 }
 
 function warmup(pane) {
@@ -47,34 +52,7 @@ function warmup(pane) {
         if (next) break;
       }
     }
-    if (!stop && pane.isConnected) { logActivity('warmup', 10); $('#play').innerHTML = '<br><div class="card"><h2 class="ok">Warm-up done</h2><p>Your mouth is ready. Go to Speak or tongue twisters.</p></div>'; }
-  };
-}
-
-function ddk(pane) {
-  const hist = S.ddk.slice(-10).map(d => d.rate.toFixed(1)).join(' ') || 'none yet';
-  pane.innerHTML = `<div class="grid g2"><div class="card hl"><h2>Pa-ta-ka speed test</h2>
-    <p>Speech therapists use this (diadochokinesis) to measure articulation speed. Say <b>“pa-ta-ka-pa-ta-ka…”</b> as fast <i>and clearly</i> as you can for 5 seconds.</p>
-    ${meterHtml('dlvl')}<br><button id="dgo">Start (1 s quiet, then go)</button><div id="dres"></div></div>
-    <div class="card"><h2>History (syllables/sec)</h2><p>${hist}</p><p class="muted">Typical adults: ~5-7 syllables/sec. Clarity first; if syllables blur, slow down. Use a quiet room. The counter detects loudness bursts, so it's an estimate.</p></div></div>`;
-  $('#dgo').onclick = async () => {
-    if (!(await ensureMic())) return;
-    $('#dres').innerHTML = '<p class="muted">Quiet… measuring room</p>';
-    const noise = await calibrate(mic, 1000);
-    const env = [];
-    $('#dres').innerHTML = '<div class="big ok">GO!</div>';
-    await new Promise(res => {
-      const stop = loop(mic, d => { env.push(d); setMeter('dlvl', d); });
-      setTimeout(() => { stop(); res(); }, 5000);
-    });
-    const peak = Math.max(...env);
-    const thr = Math.max(noise + 10, peak - 18);
-    const n = countBursts(env, thr, 3);
-    const rate = n / 5;
-    S.ddk.push({ ts: Date.now(), rate });
-    save();
-    logActivity('ddk', 5);
-    $('#dres').innerHTML = `<div class="kpi"><div><b>${rate.toFixed(1)}</b><span class="muted">syllables/sec</span></div><div><b>${n}</b><span class="muted">syllables in 5 s</span></div></div>`;
+    if (!stop && pane.isConnected) { logActivity('warmup'); $('#play').innerHTML = '<br><div class="card"><h2 class="ok">Warm-up done</h2><p>Your mouth is ready. Go to Speak or tongue twisters.</p></div>'; }
   };
 }
 
@@ -111,7 +89,7 @@ function twister(pane) {
       const missed = missedWords(cur().text, heard);
       S.twisters.push({ ts: Date.now(), text: cur().text, score });
       save();
-      logActivity('twister', 5);
+      logActivity('twister');
       $('#tres').innerHTML = `<br><div class="kpi"><div><b class="${score >= 85 ? 'ok' : score >= 60 ? 'warnc' : 'bad'}">${score}%</b><span class="muted">understood</span></div><div><b>${secs.toFixed(1)}s</b><span class="muted">time</span></div></div>
         <div class="row" style="margin-top:8px"><button class="ghost small" id="pm">Model</button>${blob ? '<button class="ghost small" id="py">You</button>' : ''}<span class="muted">Compare model → you → model. Hear the difference, then retry.</span></div>
         <p>Heard: “${esc(heard)}”</p>${missed.length ? `<p>Unclear words: ${missed.map(m => `<b class="bad">${esc(m)}</b>`).join(', ')}: slow down and over-articulate these.</p>` : '<p class="ok">Every word was clear!</p>'}`;
@@ -179,7 +157,7 @@ function pairs(pane) {
     const score = Math.round(100 * correct / trials.length);
     S.pairs.push({ ts: Date.now(), group: group.group, score });
     save();
-    logActivity('pairs', 10);
+    logActivity('pairs');
     $('#play').innerHTML = `<div class="kpi"><div><b class="${score >= 80 ? 'ok' : 'warnc'}">${score}%</b><span class="muted">${esc(group.group)}</span></div></div><p class="muted">${esc(group.tip)}</p>`;
   };
 }
@@ -187,7 +165,8 @@ function pairs(pane) {
 function pen(pane) {
   const passage = pick(READING_PASSAGES);
   const hist = S.pen.slice(-6).map(p => `${p.score}% · ${p.wpm} wpm`).join(' ') || 'none yet';
-  pane.innerHTML = `<div class="card hl"><h2>Pen-in-mouth reading (Mona's drill)</h2>
+  pane.innerHTML = `<div class="card hl"><h2>Pebble drill</h2>
+    <p class="muted">Demosthenes, born with unclear speech, practised with pebbles in his mouth (Plutarch). Mona does the modern version with a pen.</p>
     <p><b>Step 1:</b> Hold a pen <i>horizontally</i> between your teeth (like a dog holding a bone). Read the passage aloud for 60 s, working hard to be understood. Your tongue and lips have to work extra.<br>
     <b>Step 2:</b> Remove the pen and read it again. It will feel incredibly easy and crisp. SpeakForge scores this second read.</p>
     <p class="muted">History: ${hist}</p>
@@ -209,7 +188,7 @@ function pen(pane) {
       const wpm = wordsPerMinute(countWords(passage), secs);
       S.pen.push({ ts: Date.now(), score, wpm });
       save();
-      logActivity('pen', 15);
+      logActivity('pen');
       const missed = [...new Set(missedWords(passage, heard))];
       $('#pres').innerHTML = `<br><div class="kpi"><div><b class="${score >= 90 ? 'ok' : 'warnc'}">${score}%</b><span class="muted">understood</span></div><div><b>${wpm}</b><span class="muted">reading wpm</span></div></div>
         ${missed.length ? `<p>Mumbled/unclear: ${missed.slice(0, 15).map(m => `<b class="bad">${esc(m)}</b>`).join(', ')}</p>` : '<p class="ok">Crystal clear!</p>'}`;
@@ -226,4 +205,53 @@ function pen(pane) {
     step2();
   };
   $('#p2').onclick = step2;
+}
+
+function groups(pane) {
+  const hist = (S.prosody || []).slice(-6).map(p => p.score + '%').join(' · ') || 'none yet';
+  pane.innerHTML = `<div class="card hl"><h2>Thought groups</h2>
+    <p class="muted">Churchill typed his speeches in short lines like a poem: one thought, one breath. Read the passage, <b>pause at every <span class="slash">/</span></b>, and <b>stress the <span class="stress">bright</span> word</b> in each group. Native listeners use these pauses and stresses to follow you; practising them improved how easy learners were to understand (Derwing, Munro &amp; Wiebe 1998).</p>
+    <select id="gp" style="width:100%">${THOUGHT_GROUPS.map((g, i) => `<option value="${i}">${esc(g.title)}</option>`).join('')}</select><br><br>
+    <div class="passage" id="gtext" style="font-size:24px;line-height:1.9"></div><br>
+    <div class="row"><button class="ghost" id="gm">Hear the groups</button><button id="gr">${icon('mic')} Record me</button><span class="faint">History: ${hist}</span></div><div id="gres"></div></div>`;
+  const cur = () => THOUGHT_GROUPS[+$('#gp').value];
+  const draw = () => {
+    $('#gtext').innerHTML = cur().text.split('/').map(g => g.trim().split(/\s+/).map(w => { const letters = w.replace(/[^A-Za-z]/g, ''); return letters.length > 1 && letters === letters.toUpperCase() ? `<span class="stress">${esc(w.toLowerCase())}</span>` : esc(w); }).join(' ')).join('<span class="slash">/</span>');
+    $('#gres').innerHTML = '';
+  };
+  draw();
+  $('#gp').onchange = draw;
+  $('#gm').onclick = async () => {
+    const parts = cur().text.split('/').map(g => g.trim().toLowerCase());
+    for (const p of parts) { if (!pane.isConnected) return; await new Promise(res => { say(p, { rate: 0.92, onEnd: res }); setTimeout(res, 6000); }); await sleep(380); }
+  };
+  let rec = null, tracker = null, stopLoop = null;
+  $('#gr').onclick = async e => {
+    const btn = e.currentTarget;
+    if (!rec) {
+      if (!(await ensureMic())) return;
+      const noise = await calibrate(mic, 600);
+      tracker = new VoiceTracker({ thresholdDb: speechThreshold(noise), minPauseMs: 180 });
+      stopLoop = loop(mic, (d, t) => tracker.update(d, t));
+      rec = new Recorder(mic.stream); rec.start();
+      btn.innerHTML = 'Done'; $('#gres').innerHTML = '<p class="warnc" style="margin-top:12px">Recording… read with the pauses.</p>';
+      return;
+    }
+    stopLoop();
+    const blob = await rec.stop(); rec = null; btn.innerHTML = `${icon('mic')} Record again`;
+    let fit = null;
+    if (LOCAL.ok && LOCAL.whisper && blob) {
+      $('#gres').innerHTML = '<p class="muted" style="margin-top:12px">Measuring where you paused…</p>';
+      try { const t = await postAudio('transcribe', blob); fit = pauseFit(cur().text, t.words || []); } catch { fit = null; }
+    }
+    const nb = parseGroups(cur().text).filter(w => w.boundary).length;
+    const est = !fit;
+    if (!fit) { const n = tracker.pauses.length; fit = { score: Math.max(0, Math.round(100 - 100 * Math.abs(n - nb) / Math.max(nb, 1))), atBoundary: Math.min(n, nb), boundaries: nb, inside: Math.max(0, n - nb) }; }
+    ensureArr('prosody').push({ ts: Date.now(), score: fit.score, est });
+    save();
+    logActivity('groups');
+    const url = blob ? URL.createObjectURL(blob) : '';
+    $('#gres').innerHTML = `<br>${scoreBlock(fit.score, 100, 'Pauses in the right places', est ? `About ${tracker.pauses.length} pauses for ${nb} boundaries (estimate; start ./start.sh for exact placement).` : `You paused at ${fit.atBoundary} of ${fit.boundaries} boundaries, and ${fit.inside} time${fit.inside === 1 ? '' : 's'} mid-group.`)}
+      ${url ? `<audio controls src="${url}" style="width:100%;margin-top:12px"></audio>` : ''}<p class="faint">Listen: is the bright word louder, longer and higher than the others in its group?</p>`;
+  };
 }

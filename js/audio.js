@@ -271,6 +271,10 @@ export function pickVoice() {
   cachedVoice = vs.find(v => v.localService) || vs[0] || speechSynthesis.getVoices().find(v => /^en/i.test(v.lang)) || null;
   return cachedVoice;
 }
+export function hasNaturalVoice() {
+  const v = pickVoice();
+  return !!v && /premium|enhanced|natural|neural|google/i.test(v.name);
+}
 export function say(text, { rate = 1, onBoundary, onEnd } = {}) {
   if (!window.speechSynthesis) return;
   speechSynthesis.cancel();

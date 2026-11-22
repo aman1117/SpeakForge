@@ -63,7 +63,6 @@ def describe():
 def to_wav(src, start=0.0, length=None):
     """Decode any audio file (webm/mp4/m4a/mp3/wav) to a 16 kHz mono WAV. Returns (path, seconds)."""
     import av
-    dst = tempfile.NamedTemporaryFile(suffix='.wav', delete=False).name
     c = av.open(src)
     r = av.AudioResampler(format='s16', layout='mono', rate=16000)
     buf = []
@@ -79,6 +78,7 @@ def to_wav(src, start=0.0, length=None):
         buf.append(g.to_ndarray().flatten())
     c.close()
     a = np.concatenate(buf).astype(np.int16) if buf else np.zeros(1600, dtype=np.int16)
+    dst = tempfile.NamedTemporaryFile(suffix='.wav', delete=False).name  # created only once decoding succeeded
     with wave.open(dst, 'wb') as w:
         w.setnchannels(1)
         w.setsampwidth(2)

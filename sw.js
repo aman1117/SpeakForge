@@ -1,5 +1,5 @@
 // Network-first service worker: always fresh when online, still works offline.
-const CACHE = 'speakforge-v3';
+const CACHE = 'speakforge-v4';
 self.addEventListener('install', e => self.skipWaiting());
 self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
 self.addEventListener('fetch', e => {

@@ -88,18 +88,6 @@ export const MINIMAL_PAIRS = [
   { group: 'Z vs J', pairs: [['zest', 'jest'], ['Zane', 'Jane'], ['buzz', 'budge'], ['raising', 'raging']], tip: 'Z: buzzing S sound. J: tongue blade on the ridge, then release.' },
 ];
 
-export const NAMING_EMOJI = [
-  ['🍎', 'apple'], ['🚲', 'bicycle'], ['🔑', 'key'], ['🕯️', 'candle'], ['🧲', 'magnet'], ['🪜', 'ladder'], ['🧺', 'basket'], ['⏳', 'hourglass'],
-  ['🧯', 'fire extinguisher'], ['🪒', 'razor'], ['🧵', 'thread'], ['🪡', 'needle'], ['🔨', 'hammer'], ['🪛', 'screwdriver'], ['🧹', 'broom'], ['🪣', 'bucket'],
-  ['🧽', 'sponge'], ['🔦', 'flashlight'], ['🕰️', 'clock'], ['📎', 'paperclip'], ['✂️', 'scissors'], ['📌', 'pin'], ['🧭', 'compass'], ['🔭', 'telescope'],
-  ['🔬', 'microscope'], ['🎻', 'violin'], ['🥁', 'drum'], ['🎺', 'trumpet'], ['🦉', 'owl'], ['🦒', 'giraffe'], ['🦔', 'hedgehog'], ['🐢', 'turtle'],
-  ['🦀', 'crab'], ['🐙', 'octopus'], ['🦇', 'bat'], ['🐿️', 'squirrel'], ['🌋', 'volcano'], ['🏝️', 'island'], ['🌉', 'bridge'], ['⛺', 'tent'],
-  ['🧊', 'ice'], ['🌪️', 'tornado'], ['🌈', 'rainbow'], ['🍍', 'pineapple'], ['🥥', 'coconut'], ['🍆', 'eggplant'], ['🥕', 'carrot'], ['🧄', 'garlic'],
-  ['🥨', 'pretzel'], ['🧇', 'waffle'], ['🍯', 'honey'], ['🧂', 'salt'], ['🥄', 'spoon'], ['🍴', 'fork'], ['🪑', 'chair'], ['🛏️', 'bed'],
-  ['🪞', 'mirror'], ['🪟', 'window'], ['🚪', 'door'], ['🧳', 'suitcase'], ['🎒', 'backpack'], ['👓', 'glasses'], ['🧤', 'gloves'], ['🧣', 'scarf'],
-  ['⚓', 'anchor'], ['🛶', 'canoe'], ['🚁', 'helicopter'], ['🚂', 'train'], ['🛞', 'wheel'], ['⛽', 'fuel pump'], ['🚦', 'traffic light'], ['🏰', 'castle'],
-  ['🎈', 'balloon'], ['🪁', 'kite'], ['🧩', 'puzzle'], ['🎲', 'dice'], ['🪃', 'boomerang'], ['🏹', 'bow and arrow'], ['🛡️', 'shield'], ['⚖️', 'scale'],
-];
 
 export const NAMING_DEFS = [
   ['A person who designs buildings', 'architect'], ['Fear of being in small closed spaces', 'claustrophobia'], ['To put something off until later', 'procrastinate'],
@@ -136,17 +124,7 @@ export const TABOO_CARDS = [
   { word: 'feedback', banned: ['opinion', 'review', 'comment'] }, { word: 'confidence', banned: ['believe', 'sure', 'self'] },
 ];
 
-export const CATEGORIES = [
-  'fruits', 'animals', 'things in a kitchen', 'programming languages', 'jobs', 'countries', 'things that are red', 'emotions',
-  'things you find in an office', 'sports', 'apps on your phone', 'things that fly', 'body parts', 'vegetables', 'clothes',
-  'adjectives to describe a person', 'verbs for movement', 'things in a bathroom', 'musical instruments', 'weather words',
-  'tech companies', 'things you do in the morning', 'ways to say “good”', 'ways to say “bad”', 'words related to money',
-];
 
-export const SYNONYM_SPRINT = [
-  'good', 'bad', 'big', 'small', 'happy', 'sad', 'fast', 'important', 'difficult', 'easy', 'interesting', 'tired',
-  'angry', 'smart', 'beautiful', 'problem', 'idea', 'help', 'think', 'show', 'make', 'change', 'start', 'use',
-];
 
 export const SHADOW_SCRIPTS = [
   { title: 'Tech hook (Theo-style)', text: "Okay, so this is kind of insane. I've been using this tool for a week, and it genuinely changed how I write code. To be clear, I'm not saying you should drop everything. But if you care about speed, you need to see this. Here's why." },
@@ -230,34 +208,20 @@ export const EXPOSURE_LADDER = [
 ];
 
 export const PHASES = [
-  { weeks: [1, 4], name: 'Foundation', goal: 'Daily habit + baseline. Breath, volume, pen-in-mouth, 1-min speeches, rescue phrases.', focus: ['warmup', 'articulation', 'volume', 'speak', 'retrieval'] },
-  { weeks: [5, 10], name: 'Fluency engine', goal: 'Kill restarts: 4/3/2, Taboo, rapid naming, phrase bank, shadowing 10 min/day.', focus: ['speak432', 'retrieval', 'shadow', 'phrases', 'articulation'] },
-  { weeks: [11, 18], name: 'Expression', goal: 'Pitch, pausing, stress, storytelling, PREP structure, Theo-style hooks. Toastmasters weekly.', focus: ['shadow', 'speak', 'phrases', 'volume', 'retrieval'] },
-  { weeks: [19, 26], name: 'Creator mode', goal: '3 reels/week, filming under pressure, live practice, public exposure.', focus: ['speakCreator', 'shadow', 'articulation', 'phrases'] },
+  { weeks: [1, 4], name: 'Foundation', goal: 'Build the daily habit and baselines: answer first, rescue phrases, filler awareness, calm breathing, volume.' },
+  { weeks: [5, 10], name: 'Fluency engine', goal: 'Kill restarts and basic words: 4/3/2, Taboo, word upgrades from your own speech, explain like Feynman.' },
+  { weeks: [11, 18], name: 'Expression', goal: 'Sound clear and engaging: thought groups, stress, stories, PREP, a growing virtual audience, real meetings.' },
+  { weeks: [19, 26], name: 'Creator mode', goal: 'Perform: one-line headlines, reels on camera, tough crowds, public posts, the day-1 vs day-180 test.' },
 ];
 
 export const WEEK_THEMES = {
-  1: 'Baseline + breathing', 2: 'Volume & projection', 3: 'Mouth gym (pen-in-mouth)', 4: 'Rescue phrases',
-  5: '4/3/2 fluency', 6: 'Taboo & circumlocution', 7: 'V/W and TH', 8: 'Shadowing 10 min/day', 9: 'Rapid naming speed', 10: 'Phrase chunks',
-  11: 'Pausing with purpose', 12: 'Word stress & rhythm', 13: 'Pitch variety', 14: 'PREP structure', 15: 'Storytelling', 16: 'Flap T & R',
-  17: 'Opinions & debate', 18: 'Mid-point re-test',
-  19: 'Hooks in 5 seconds', 20: 'Reel scripts', 21: 'Filming confidence', 22: 'Speed under control', 23: 'Q&A / live talk', 24: 'Humour & energy', 25: 'Public reels', 26: 'Final test + day 1 vs day 180',
+  1: 'Baseline: benchmark, first real-life upload', 2: 'Answer first (bottom line up front)', 3: 'Spot your fillers', 4: 'Rescue phrases: bridge, never rewind',
+  5: '4/3/2 fluency', 6: 'Taboo and talking around words', 7: 'Upgrade your vague words', 8: 'Explain to a 12-year-old', 9: 'Fast word retrieval', 10: 'Ready-made chunks',
+  11: 'Thought groups and pausing', 12: 'Stress the key word', 13: 'Stories: situation, problem, turn, lesson', 14: 'PREP and the rule of three', 15: 'Classroom-sized audience',
+  16: 'Confused listener drills', 17: 'Opinions and polite disagreement', 18: 'Mid-point re-test',
+  19: 'One-line headlines', 20: 'Reel scripts from bullet points', 21: 'Filming confidence + video self-review', 22: 'Speed under control', 23: 'Q&A and tough crowds', 24: 'Energy and humour', 25: 'Public reels', 26: 'Final test: day 1 vs day 180',
 };
 
-export const SKILLS = [
-  { name: 'Breath support', what: 'Steady air from the belly so your voice doesn’t fade or shake.', drill: 'Box breathing, “count to 20 on one breath”' },
-  { name: 'Volume & projection', what: 'Being heard easily without shouting.', drill: 'Volume and nerves: hold the volume zone' },
-  { name: 'Articulation', what: 'Precise lips/tongue/jaw movement so each sound is clean.', drill: 'Pen-in-mouth, tongue twisters, pa-ta-ka' },
-  { name: 'Pronunciation (sounds)', what: 'Correct individual sounds: V/W, TH, R, vowels.', drill: 'Minimal pairs' },
-  { name: 'Prosody', what: 'Stress, rhythm, pitch movement, intonation.', drill: 'Shadowing, stress-the-key-word reading' },
-  { name: 'Pausing', what: 'Pausing BETWEEN ideas, not inside phrases.', drill: 'Slash-marked reading, 10-word sentences' },
-  { name: 'Lexical retrieval', what: 'Finding words fast under pressure.', drill: 'Rapid naming, category sprint, synonym sprint' },
-  { name: 'Repair fluency', what: 'Recovering from a lost word WITHOUT restarting.', drill: 'No-Restart speaking + rescue phrases + Taboo' },
-  { name: 'Formulaic chunks', what: 'Ready-made phrases that let you speak without building every word.', drill: 'Phrases (spaced repetition)' },
-  { name: 'Structure', what: 'Organising thoughts: hook, point, reason, example, close.', drill: 'PREP mode, 4/3/2' },
-  { name: 'Confidence & presence', what: 'Speaking up despite nerves; eye contact; energy.', drill: 'Exposure ladder, Toastmasters, filming daily' },
-  { name: 'Listening & imitation', what: 'Hearing native patterns and copying them.', drill: 'Shadowing Theo/Mona clips' },
-];
 
 export const QUESTIONS = [
   'What did you do last weekend?', 'What is the best decision you made this year?', 'If you could live in any city, which one and why?',
@@ -289,15 +253,15 @@ export const AFFIRMATIONS = [
 ];
 
 export const LESSONS = {
-  'Repair fluency': { good: 'Fluent speakers lose words too. They never rewind; they bridge ("the thing that…") and keep the same sentence.', how: ['Use P.B.C.: Pause → Bridge → Continue', 'Press SPACE every time you restart, to build awareness', 'Do one No-Restart challenge a day'], target: 'Under 1 freeze and 1 restart per minute' },
-  'Lexical retrieval': { good: 'Words come out within ~1 s because they have been retrieved many times before.', how: ['Rapid naming daily', 'Add every word you lost to “My lost words”', 'Category and synonym sprints'], target: 'Naming average under 1.4 s at 90%+' },
-  'Formulaic chunks': { good: 'Natives speak in pre-built chunks (“to be honest”, “which means”), which frees the brain to think.', how: ['Phrase review daily', 'Use 3 phrases in every speech', 'Add phrases you hear from Theo/Mona'], target: 'Most phrases in box 3+' },
-  'Pace': { good: 'Comfortable, clear pace: 140-170 wpm for impromptu speech.', how: ['4/3/2: same talk in less time', 'Shadow at 1× then 1.15×'], target: '150-170 wpm with clarity 90%+' },
-  'Pausing (no fillers)': { good: 'Short silent pauses between ideas instead of “um/uh/basically”.', how: ['10-word sentences', 'Replace a filler with a silent half-second breath'], target: 'Under 2 fillers per minute' },
-  'Articulation': { good: 'Every syllable is clean; word endings are finished; mouth opens enough.', how: ['Warm-up + pen-in-mouth daily', 'Tongue twisters slow → fast', 'Watch recognition clarity %'], target: 'Pen-reading clarity 95%, pa-ta-ka 6+/s' },
-  'Pronunciation (sounds)': { good: 'Sounds that change meaning (V/W, TH, vowels) are distinct.', how: ['Minimal pairs for your first-language priorities', 'Listen: model vs you'], target: '85%+ on every group' },
-  'Volume & projection': { good: 'Easily heard at 3 metres without strain; volume stays up at sentence ends.', how: ['Volume zone daily', 'Projection ladder', 'Arena speak-up nudge'], target: '85% of speech in the confident zone' },
-  'Confidence': { good: 'You speak even when nervous, and nervousness after speaking is lower than before.', how: ['Pre-speech ritual (breath + self-talk)', 'Climb the exposure ladder weekly', 'Camera mode'], target: 'Nervousness after < 3/10; ladder L10+' },
-  'Prosody (shadowing)': { good: 'Stress, rhythm and melody sound natural: key words stressed, small words reduced.', how: ['Shadow 10 min/day', 'Echo & score'], target: 'Echo clarity 90%+' },
-  'Structure': { good: 'Listeners always know your point: hook → point → reason → example → close.', how: ['PREP mode', 'Creator mode', 'Question chain'], target: '20+ structured speeches' },
+  'Repair fluency': { good: 'Fluent speakers lose words too. They never rewind; they bridge ("the thing that…") and keep the same sentence.', how: ['Pause → Bridge → Continue', 'Press SPACE every time you restart, to build awareness', 'One No-Restart challenge a day'], target: 'Under 1 freeze and 1 restart per minute' },
+  'Word retrieval': { good: 'Words come out within about a second because they have been retrieved many times before.', how: ['Rapid retrieval daily', 'Every lost word goes into your deck', 'Say each word in a full sentence'], target: 'Average under 1.5 s at 90%+' },
+  'Precise vocabulary': { good: 'Specific words instead of "very good thing": the listener sees exactly what you mean.', how: ['Word upgrade from your own transcripts', 'Say it better', 'Upload real conversations weekly'], target: 'Under 3 vague words per 100' },
+  'Filler control': { good: 'Silent half-second pauses where "um" used to be. The pause sounds confident; the filler sounds unsure.', how: ['Spot your fillers on playback (awareness)', 'Filler-free minute (competing response: close lips, breathe)', 'Fresh starts: begin sentences with a breath'], target: 'Under 2 fillers per minute' },
+  'Clear explanations': { good: 'Point first, then reasons, one concrete example, then stop. The listener can repeat your point back.', how: ['Answer first', 'Explain to a 12-year-old', 'Confused listener conversation', 'Redo immediately with one fix'], target: '8/10 on the explanation rubric' },
+  'Ready-made chunks': { good: 'Natives speak in pre-built chunks ("to be honest", "which means"), which frees the brain to think.', how: ['Phrase review daily', 'Use 3 phrases in every speech'], target: 'Most phrases in box 3+' },
+  'Pace': { good: 'Comfortable, clear pace: 130-170 words per minute, with pauses between ideas.', how: ['4/3/2: same talk in less time', 'Shadow at 1× then 1.15×'], target: '140-165 wpm' },
+  'Articulation': { good: 'Every syllable is clean; word endings are finished; the mouth opens enough.', how: ['Warm-up + pebble drill', 'Tongue twisters slow → fast', 'Sound pairs for your first language'], target: 'Pebble-drill clarity 95%' },
+  'Rhythm and pausing': { good: 'Pauses fall between thought groups, and one word per group is stressed.', how: ['Thought groups (Churchill\u2019s "psalm form")', 'Shadowing', 'Echo and score'], target: '90%+ pauses at boundaries' },
+  'Volume': { good: 'Easily heard at 3 metres without strain; volume stays up at sentence ends.', how: ['Volume zone daily', 'Projection ladder'], target: '85% of speech in the confident zone' },
+  'Calm on stage': { good: 'You speak even when nervous, and the fear after speaking is lower than before. The feared outcome mostly doesn\u2019t happen.', how: ['Calm reset before speaking', 'Virtual audience levels 1→6', 'Video self-review', 'One real-world rung a week'], target: 'Nerves after < 30/100 at level 5' },
 };

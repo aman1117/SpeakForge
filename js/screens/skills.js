@@ -1,8 +1,8 @@
 import { S, esc } from '../core.js';
-import { skillScores, focusOfDay, weeklyReport, SKILL_LINKS } from '../metrics.js';
+import { skillScores, focusOfDay, weeklyReport, SKILL_LINKS, SKILL_GROUPS } from '../metrics.js';
 import { LESSONS } from '../content.js';
 
-const color = v => v == null ? 'var(--line)' : v >= 75 ? 'var(--accent2)' : v >= 50 ? 'var(--warn)' : 'var(--bad)';
+const color = v => v == null ? 'var(--velvet-3)' : v >= 75 ? 'var(--seaglass)' : v >= 50 ? 'var(--brass)' : 'var(--coral)';
 
 export function weeklyCard() {
   const w = weeklyReport(S.sessions);
@@ -10,28 +10,25 @@ export function weeklyCard() {
     const a = w.thisWeek[k], b = w.lastWeek[k];
     let trend = '';
     if (a != null && b != null && a !== b) trend = (better === 'up' ? a > b : a < b) ? '<span class="ok">▲ better</span>' : '<span class="warnc">▼ worse</span>';
-    return `<tr><td>${label}</td><td><b>${a ?? '-'}</b></td><td class="muted">${b ?? '-'}</td><td>${trend}</td></tr>`;
+    return `<tr><td>${label}</td><td><b>${a ?? '–'}</b></td><td class="muted">${b ?? '–'}</td><td>${trend}</td></tr>`;
   };
   return `<div class="card"><h2>Weekly report</h2><table><tr><th></th><th>This week</th><th>Last week</th><th></th></tr>
-    ${row('Speeches', 'speeches', 'up')}${row('Minutes spoken', 'minutes', 'up')}${row('Words/min', 'wpm', 'up')}${row('Freezes/min', 'freezesPerMin', 'down')}${row('Restarts/min', 'restartsPerMin', 'down')}</table></div>`;
+    ${row('Speeches', 'speeches', 'up')}${row('Minutes spoken', 'minutes', 'up')}${row('Freezes per min', 'freezesPerMin', 'down')}${row('Restarts per min', 'restartsPerMin', 'down')}${row('Fillers per min', 'fillersPerMin', 'down')}${row('Vague words per 100', 'vaguePer100', 'down')}${row('Words per min', 'wpm', 'up')}</table></div>`;
 }
 
 export function focusCard() {
   const f = focusOfDay(skillScores(S));
-  return `<div class="card hl"><h2>Focus of the day: ${esc(f.skill)}</h2><p>${esc(f.reason)}.</p><a class="btn" href="${f.link[0]}">${esc(f.link[1])}</a></div>`;
+  return `<div class="card hl"><p class="eyebrow">Focus of the day</p><h2>${esc(f.skill)}</h2><p class="muted">${esc(f.reason)}.</p><a class="btn" href="${f.link[0]}">${esc(f.link[1])}</a></div>`;
 }
 
-export function render(main) {
+export function skillMap(pane) {
   const sc = skillScores(S);
-  main.innerHTML = `
-    <h1>Skill map</h1>
-    <p class="sub">Your live score (0-100) on each skill of great speaking, computed from your recent practice. Grey = not measured yet. Train the lowest bar first.</p>
-    <div class="grid g2">${focusCard()}${weeklyCard()}</div><br>
-    <div class="card">${Object.entries(sc).map(([k, v]) => `
-      <div style="margin:10px 0"><div class="row"><b>${esc(k)}</b><span class="spacer"></span><span class="muted">${v == null ? 'not measured' : v + '/100'}</span></div>
-      <div class="meter" style="height:12px"><i style="width:${v ?? 0}%;background:${color(v)}"></i></div></div>`).join('')}</div><br>
-    <div class="grid g2">${Object.entries(LESSONS).map(([k, l]) => `
-      <div class="card"><h3>${esc(k)} ${sc[k] != null ? `<span class="pill">${sc[k]}/100</span>` : ''}</h3>
-        <p><b>What good looks like:</b> ${esc(l.good)}</p><ul>${l.how.map(h => `<li>${esc(h)}</li>`).join('')}</ul>
-        <p class="muted">Target: ${esc(l.target)}</p>${SKILL_LINKS[k] ? `<a class="btn" href="${SKILL_LINKS[k][0]}">${esc(SKILL_LINKS[k][1])}</a>` : ''}</div>`).join('')}</div>`;
+  pane.innerHTML = `<div class="grid g2">${focusCard()}${weeklyCard()}</div><br>
+    <div class="grid g2">${Object.entries(SKILL_GROUPS).map(([g, ks]) => `<div class="card"><p class="eyebrow">${esc(g)}</p>${ks.map(k => {
+      const v = sc[k], l = LESSONS[k] || {};
+      return `<div style="margin:6px 0 18px"><div class="row"><h3 style="margin:0">${esc(k)}</h3><span class="spacer"></span><b style="font-family:var(--display);font-size:20px;color:${color(v)}">${v ?? '–'}</b></div>
+        <div class="bar" style="margin:8px 0 10px"><i style="width:${v ?? 0}%;background:${color(v)}"></i></div>
+        <p class="muted" style="margin:0 0 6px">${esc(l.good || '')}</p><p class="faint" style="margin:0 0 8px">Target: ${esc(l.target || '')}</p>
+        ${SKILL_LINKS[k] ? `<a class="btn small ghost" href="${SKILL_LINKS[k][0]}">${esc(SKILL_LINKS[k][1])}</a>` : ''}</div>`;
+    }).join('')}</div>`).join('')}</div>`;
 }

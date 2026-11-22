@@ -1,18 +1,30 @@
-import { S, save, logActivity, $, esc, pick, mic, ensureMic, toast, sleep } from '../core.js';
+import { S, save, logActivity, rememberText, $, esc, pick, mic, ensureMic, toast, sleep } from '../core.js';
+import { icon } from '../icons.js';
 import { Listener, speechSupported, say, loop, calibrate, cue } from '../audio.js';
 import { VoiceTracker, speechThreshold, countWords } from '../metrics.js';
-import { PROVIDERS, aiReady, chat, partnerSystem, parsePartner, SCENARIOS } from '../ai.js';
+import { PROVIDERS, aiReady, chat, chatJson, partnerSystem, parsePartner, SCENARIOS, PARTNER_SCHEMA } from '../ai.js';
 import { RESCUE_PHRASES } from '../content.js';
 import { LOCAL } from '../local.js';
 import { setListenMode } from '../audio.js';
 
 const L1S = ['Hindi', 'Tamil', 'Telugu', 'Kannada', 'Malayalam', 'Marathi', 'Bengali', 'Gujarati', 'Punjabi', 'Other'];
 
+export function renderPartner(main) {
+  const ready = aiReady(S.ai);
+  main.innerHTML = `<p class="eyebrow"><a href="#/practice">Practice</a> · Conversation</p><h1>Conversation partner</h1>
+    <p class="sub">Real back-and-forth practice by voice. The AI talks out loud, you answer, and after each answer you get one correction and a clearer way to say it. Freezes trigger rescue phrases. Use headphones so the mic doesn’t hear the AI.</p>
+    <div class="card hl"><div class="row"><select id="scen" style="flex:1">${SCENARIOS.map(s => `<option>${esc(s)}</option>`).join('')}</select><button id="startc" ${ready ? '' : 'disabled'}>${icon('mic')} Start conversation</button></div>
+      ${ready ? '<p class="faint" style="margin-top:10px">Tip: “Confused listener” tells you honestly when your explanation loses them.</p>' : '<p class="warnc" style="margin-top:10px">Connect the AI coach in <a href="#/settings">Settings</a> first.</p>'}
+      <div id="conv"></div></div>`;
+  if (ready) $('#startc').onclick = () => conversation($('#conv'), $('#scen').value);
+}
+
 export function render(main) {
   const a = S.ai, st = S.settings;
   main.innerHTML = `
-    <h1>Coach and profile</h1>
-    <p class="sub">Your profile tunes the drills. An AI connection unlocks automatic feedback after every speech and a voice conversation partner. Keys are stored <b>only in this browser</b> and sent only to the provider you choose.</p>
+    <p class="eyebrow">Settings</p>
+    <h1>Profile and coach</h1>
+    <p class="sub">Your profile tunes the drills. The AI coach gives feedback after every speech, scores explanations and talks with you. On your Mac it runs privately through Ollama with Gemma 4. Keys for cloud providers stay <b>only in this browser</b>.</p>
     <div class="grid g2">
       <div class="card"><h2>Your profile</h2>
         <label class="muted">First language (prioritises the sounds you drill)</label><br><select id="l1">${L1S.map(l => `<option ${st.l1 === l ? 'selected' : ''}>${l}</option>`).join('')}</select><br><br>
@@ -20,6 +32,7 @@ export function render(main) {
         <label class="muted">Speech recognition</label><br><select id="eng"><option value="auto" ${(st.engine || 'auto') === 'auto' ? 'selected' : ''}>Automatic (on this computer when available)</option><option value="local" ${st.engine === 'local' ? 'selected' : ''} ${LOCAL.whisper ? '' : 'disabled'}>On this computer (Whisper)</option><option value="browser" ${st.engine === 'browser' ? 'selected' : ''}>Browser (sends audio to the browser’s speech service)</option></select>
         <p class="muted" style="margin-top:6px">${LOCAL.ok ? (LOCAL.whisper ? `Local engine found: ${esc(LOCAL.whisper)}.` : 'Local server found, but Whisper is not installed. Run setup_mac.sh.') : 'No local engine. Start SpeakForge with ./start.sh on your Mac for private, on-device speech.'}</p><br>
         <label class="muted">Daily practice time</label><br><select id="mins">${[10, 20, 35, 60].map(m => `<option value="${m}" ${st.dailyMinutes === m ? 'selected' : ''}>${m} min</option>`).join('')}</select><br><br>
+        <label><input type="checkbox" id="lf" ${st.liveFillers !== false ? 'checked' : ''}> Live filler cue (soft tone + “pause instead” when you say um)</label><br><br>
         <button id="savep">Save profile</button></div>
       <div class="card hl"><h2>AI connection</h2>
         <select id="prov" style="width:100%">${Object.entries(PROVIDERS).map(([k, v]) => `<option value="${k}" ${a.provider === k ? 'selected' : ''}>${v}</option>`).join('')}</select><br><br>
@@ -28,17 +41,12 @@ export function render(main) {
         <div class="row"><button id="savea">Save</button><button class="ghost" id="test">Test connection</button></div>
         <p id="testres" class="muted"></p>
         <details><summary class="muted">Which should I choose?</summary><p class="muted">
-          <b>This computer</b>: private and free. On your Mac Studio, <code>./setup_mac.sh</code> installs Ollama and a model; start SpeakForge with <code>./start.sh</code>.<br>
-          <b>OpenAI</b>: best quality, a few rupees per day (platform.openai.com → API keys; model gpt-4o-mini is cheap).<br>
+          <b>This computer</b> (recommended): private and free. <code>./setup_mac.sh</code> installs Ollama and Gemma 4 (26B, a mixture-of-experts model that is fast on Apple Silicon); start SpeakForge with <code>./start.sh</code>.<br>
+          <b>OpenAI</b>: cloud, costs a little per day (platform.openai.com → API keys).<br>
           <b>Azure OpenAI</b>: use your resource endpoint, deployment name and key.<br>
-          <b>Ollama</b>: free and private. Install from ollama.com, run <code>ollama pull llama3.1</code>, and start it with CORS allowed:
-          <code>$env:OLLAMA_ORIGINS="*"; ollama serve</code>. Endpoint: http://localhost:11434</p></details></div>
-    </div><br>
-    <div class="card hl"><h2>Conversation partner</h2>
-      <p>Real conversation practice: the AI talks (out loud), you answer by voice. Freezes trigger BRIDGE cards; after each answer you get one correction. Use headphones so the mic doesn't hear the AI.</p>
-      <div class="row"><select id="scen">${SCENARIOS.map(s => `<option>${esc(s)}</option>`).join('')}</select><button id="startc" ${aiReady(a) ? '' : 'disabled'}>Start conversation</button></div>
-      ${aiReady(a) ? '' : '<p class="warnc">Connect an AI above first.</p>'}
-      <div id="conv"></div></div>`;
+          <b>Ollama</b>: free and private. Install from ollama.com, run <code>ollama pull gemma4:26b</code>, and start it with CORS allowed:
+          <code>OLLAMA_ORIGINS="*" ollama serve</code>. Endpoint: http://localhost:11434</p></details></div>
+    </div>`;
   const fields = () => {
     const p = $('#prov').value;
     const f = (id, label, val, type = 'text', ph = '') => `<label class="muted">${label}</label><br><input id="${id}" type="${type}" value="${esc(val || '')}" placeholder="${ph}" style="width:100%"><br><br>`;
@@ -58,7 +66,7 @@ export function render(main) {
     save();
   };
   $('#savep').onclick = () => {
-    Object.assign(S.settings, { l1: $('#l1').value, accent: $('#acc').value, dailyMinutes: +$('#mins').value, engine: $('#eng').value });
+    Object.assign(S.settings, { l1: $('#l1').value, accent: $('#acc').value, dailyMinutes: +$('#mins').value, engine: $('#eng').value, liveFillers: $('#lf').checked });
     setListenMode(LOCAL.ok && LOCAL.whisper && S.settings.engine !== 'browser' ? 'local' : 'browser');
     save(); toast('Profile saved');
   };
@@ -70,10 +78,8 @@ export function render(main) {
     try {
       const r = await chat(S.ai, [{ role: 'user', content: 'Reply with exactly: ready' }], { timeoutMs: 30000 });
       $('#testres').innerHTML = `<span class="ok">Connected. AI says: “${esc(r.slice(0, 60))}”</span>`;
-      $('#startc').disabled = false;
     } catch (e) { $('#testres').innerHTML = `<span class="bad">${esc(e.message)}</span>`; }
   };
-  $('#startc').onclick = () => conversation($('#conv'), $('#scen').value);
 }
 
 async function conversation(box, scenario) {
@@ -91,7 +97,7 @@ async function conversation(box, scenario) {
   while (!ended && box.isConnected) {
     $('#live').innerHTML = '<p class="muted">Thinking…</p>';
     let rep;
-    try { rep = parsePartner(await chat(S.ai, messages)); } catch (e) { $('#live').innerHTML = `<p class="bad">AI error: ${esc(e.message)}</p>`; break; }
+    try { rep = parsePartner(await chatJson(S.ai, messages, PARTNER_SCHEMA)); } catch (e) { $('#live').innerHTML = `<p class="bad">AI error: ${esc(e.message)}</p>`; break; }
     messages.push({ role: 'assistant', content: JSON.stringify(rep) });
     if (rep.correction || rep.better) add(`<div class="card" style="background:var(--panel2);margin:6px 0"><span class="warnc">${esc(rep.correction)}</span>${rep.better ? `<br><span class="ok">Better: “${esc(rep.better)}”</span>` : ''}</div>`);
     add(`<p><b>Coach</b> ${esc(rep.reply)}</p>`);
@@ -110,7 +116,8 @@ async function conversation(box, scenario) {
     const words = turns.reduce((a, t) => a + countWords(t), 0);
     S.partner.push({ ts: Date.now(), scenario, turns: turns.length, words, freezes: freezesTotal });
     save();
-    logActivity('partner', 10 + turns.length * 4);
+    rememberText(turns.join('. '), 'Conversation: ' + scenario);
+    logActivity('partner');
     add(`<p class="ok"><b>Conversation saved:</b> ${turns.length} answers, ${words} words, ${freezesTotal} freezes.</p>`);
   }
 }

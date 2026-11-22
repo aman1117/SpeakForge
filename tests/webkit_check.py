@@ -8,10 +8,9 @@ import threading
 from playwright.sync_api import sync_playwright
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from smoke import ROOT, Quiet  # noqa: E402
+from e2e import ROOT, Quiet, ROUTES  # noqa: E402
 
 PORT = 8781
-ROUTES = ['home', 'speak', 'drills', 'words', 'mouth', 'voice', 'shadow', 'phrases', 'theo', 'skills', 'coach', 'plan', 'journal']
 
 
 def main():
@@ -29,7 +28,7 @@ def main():
             for r in ROUTES:
                 page.goto(base + '#/' + r)
                 page.wait_for_timeout(250)
-                if not page.inner_text('main').strip():
+                if not page.inner_text('main').strip() or 'Something broke' in page.inner_text('main'):
                     errors.append(f'{name}: empty screen {r}')
             info = page.evaluate("""async () => {
                 await document.fonts.ready;

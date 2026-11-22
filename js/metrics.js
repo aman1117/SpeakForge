@@ -4,7 +4,7 @@ export const FILLER_WORDS = ['um', 'umm', 'uh', 'uhh', 'erm', 'er', 'ah', 'hmm',
 export const FILLER_PHRASES = ['you know', 'i mean', 'basically', 'actually', 'literally', 'sort of', 'kind of', 'so yeah'];
 
 export function tokenize(text) {
-  return (text || '').toLowerCase().replace(/[^a-z0-9'\s-]/g, ' ').split(/\s+/).filter(Boolean);
+  return (text || '').toLowerCase().replace(/[’‘]/g, "'").replace(/[^a-z0-9'\s-]/g, ' ').split(/\s+/).filter(Boolean);
 }
 
 export function countWords(text) {
@@ -210,19 +210,115 @@ export function weekNumber(startKey, todayKey) {
   return Math.max(1, Math.floor((b - a) / (7 * DAY)) + 1);
 }
 
-// Turns raw session metrics into short, specific coaching notes.
+// Turns raw session metrics into short, specific coaching notes (one per problem, most important first).
 export function coachNotes(m) {
   const notes = [];
-  if (m.wpm && m.wpm < 110) notes.push('Pace is slow (' + m.wpm + ' wpm). Aim for 130-150: use bigger chunks, fewer stops.');
-  else if (m.wpm > 185) notes.push('Very fast (' + m.wpm + ' wpm). Slow down to ~150 so every word lands clearly.');
-  else if (m.wpm) notes.push('Good pace (' + m.wpm + ' wpm).');
+  const mins = Math.max((m.speakSec || 60) / 60, 0.25);
   if (m.longPausesPerMin > 2) notes.push(`${m.longPausesPerMin} long freezes/min. When a word escapes you, BRIDGE: "the thing that..." / "what I mean is..." and keep the sentence alive.`);
-  else if (m.longPausesPerMin !== undefined) notes.push('Few long freezes. Nice recovery.');
-  if (m.repetitions > 2) notes.push(`${m.repetitions} restarts/repeats detected. Commit to your first sentence frame. Don't rewind; patch forward.`);
-  if (m.fillers > 4) notes.push(`${m.fillers} fillers. Replace them with a silent half-second pause.`);
-  if (m.loudnessDelta !== undefined && m.loudnessDelta < 3) notes.push('Volume close to your quiet baseline. Project: imagine talking to someone 3 metres away.');
-  if (m.maxSentence && m.maxSentence > 30) notes.push('Very long sentences. Try the 10-word-sentence rule to stay clear.');
+  if (m.repetitions > 2) notes.push(`${m.repetitions} restarts. Commit to your first sentence frame. Don't rewind; patch forward.`);
+  if (m.fillers / mins > 3) notes.push(`${m.fillers} fillers (${(m.fillers / mins).toFixed(1)}/min). Swap each one for a silent half-second breath: close your lips, pause, continue.`);
+  if (m.vaguePer100 > 4) notes.push(`${m.vaguePer100} vague words per 100 (${Object.keys(m.vagueItems || {}).slice(0, 4).join(', ')}). Pick one precise word instead of "very + basic word".`);
+  if (m.maxSentence && m.maxSentence > 35) notes.push(`Your longest sentence ran ${m.maxSentence} words. Long chains are where listeners get lost: say the point, stop, then add one reason.`);
+  if (m.wpm && m.wpm < 105) notes.push('Pace is slow (' + m.wpm + ' wpm). Aim for 130-150: use ready-made chunks so you build less on the fly.');
+  else if (m.wpm > 185) notes.push('Very fast (' + m.wpm + ' wpm). Slow down to ~150 and pause between ideas so every point lands.');
+  if (m.loudnessDelta !== undefined && m.loudnessDelta < 3) notes.push('Volume close to your quiet baseline. Project: talk to someone 3 metres away.');
+  if (!notes.length) notes.push(m.wpm ? `Clean round at ${m.wpm} wpm. Raise the difficulty: harder topic, less planning time, or a bigger audience.` : 'No speech measured.');
   return notes;
+}
+
+// ---------- vocabulary ----------
+// Vague, overused words that make speech sound basic. Multi-word entries are matched as phrases.
+export const VAGUE = ['very', 'really', 'thing', 'things', 'stuff', 'good', 'bad', 'nice', 'big', 'small', 'a lot', 'lots of', 'get', 'got', 'make', 'do', 'did', 'like', 'kind of', 'sort of', 'basically', 'okay', 'great', 'awesome', 'cool', 'interesting', 'important', 'something', 'somehow', 'whatever', 'etc'];
+const VAGUE_STRICT = new Set(['very', 'really', 'thing', 'things', 'stuff', 'good', 'bad', 'nice', 'big', 'kind of', 'sort of', 'basically', 'cool', 'awesome', 'interesting', 'something', 'whatever']);
+
+// Moving-average type-token ratio: lexical diversity that doesn't fall just because you talked longer.
+export function mattr(tokens, win = 50) {
+  if (!tokens.length) return 0;
+  if (tokens.length <= win) return +(new Set(tokens).size / tokens.length).toFixed(2);
+  const counts = new Map();
+  let types = 0, sum = 0, n = 0;
+  const add = (t, d) => { const c = (counts.get(t) || 0) + d; counts.set(t, c); if (d > 0 && c === 1) types++; if (d < 0 && c === 0) types--; };
+  for (let i = 0; i < tokens.length; i++) {
+    add(tokens[i], 1);
+    if (i >= win) add(tokens[i - win], -1);
+    if (i >= win - 1) { sum += types / win; n++; }
+  }
+  return +(sum / n).toFixed(2);
+}
+
+export function lexicalProfile(text) {
+  const toks = tokenize(text).filter(t => !FILLER_WORDS.includes(t) && !t.endsWith('-'));
+  const joined = ' ' + toks.join(' ') + ' ';
+  const vague = {};
+  let vagueCount = 0;
+  for (const v of VAGUE_STRICT) {
+    const n = v.includes(' ') ? joined.split(' ' + v + ' ').length - 1 : toks.filter(t => t === v).length;
+    if (n) { vague[v] = n; vagueCount += n; }
+  }
+  const content = toks.filter(t => t.length > 3);
+  return {
+    words: toks.length,
+    diversity: mattr(toks),
+    vagueItems: Object.fromEntries(Object.entries(vague).sort((a, b) => b[1] - a[1])),
+    vagueCount,
+    vaguePer100: toks.length ? +(100 * vagueCount / toks.length).toFixed(1) : 0,
+    longWordPct: toks.length ? Math.round(100 * toks.filter(t => t.length >= 7).length / toks.length) : 0,
+    topRepeated: Object.entries(content.reduce((a, t) => (a[t] = (a[t] || 0) + 1, a), {})).filter(([t, n]) => n >= 4 && !STOPWORDS.has(t)).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([t, n]) => `${t} ×${n}`),
+  };
+}
+const STOPWORDS = new Set('that this they them then there their what when where which with have from about would could should just also because were been into your more some like know think going want really very thing things people'.split(' '));
+
+// ---------- mazes: false starts, repetitions and self-corrections (the "restart" problem) ----------
+const REVISION = ['i mean', 'sorry', 'no wait', 'let me rephrase', 'what i want to say', 'what i wanted to say', 'or rather', 'let me start again'];
+export function mazes(text) {
+  const toks = tokenize(text);
+  const joined = ' ' + toks.join(' ') + ' ';
+  const fragments = toks.filter(t => /^[a-z']+-$/.test(t)).length;
+  const reps = findRepetitions(text).length;
+  const revisions = REVISION.reduce((a, r) => a + joined.split(' ' + r + ' ').length - 1, 0);
+  return { total: fragments + reps + revisions, fragments, repetitions: reps, revisions };
+}
+
+// ---------- explanation structure ----------
+export const SIGNPOSTS = ['first', 'firstly', 'second', 'secondly', 'third', 'finally', 'the main point', 'the key point', 'the point is', 'in short', 'to sum up', 'bottom line', 'the reason is', 'because', 'which means', 'so the result', 'for example', 'for instance', 'on the other hand', 'however', 'in other words', 'that means', 'the problem is', 'the answer is', 'there are two', 'there are three'];
+const EXAMPLE = ['for example', 'for instance', 'like when', 'say you', 'let s say', "let's say", 'imagine', 'picture this', 'such as', 'last week', 'yesterday', 'one time'];
+const ANALOGY = ["it's like", 'its like', 'it is like', 'is like a', 'basically like', 'think of it as', 'think of it like', 'similar to', 'kind of like a', 'just like', 'the same way', 'imagine a', 'is basically a'];
+const RECAP = ['so in short', 'in short', 'to sum up', 'bottom line', 'so the point is', 'so basically', 'that s why', "that's why", 'so overall', 'in summary', 'to wrap up', 'so the answer is'];
+
+export function sentencesOf(text) {
+  return (text || '').split(/(?<=[.!?])\s+|\n+/).map(s => s.trim()).filter(s => countWords(s) > 0);
+}
+
+export function explainProfile(text) {
+  const sents = sentencesOf(text);
+  const lens = sents.map(countWords);
+  const norm = ' ' + tokenize(text).join(' ') + ' ';
+  const has = list => list.filter(p => norm.includes(' ' + tokenize(p).join(' ') + ' '));
+  const signposts = has(SIGNPOSTS);
+  const andChains = sents.filter(s => (' ' + tokenize(s).join(' ') + ' ').split(' and ').length - 1 >= 3).length;
+  const last = sents.slice(-2).join(' ');
+  const recapEnd = has(RECAP).some(p => (' ' + tokenize(last).join(' ') + ' ').includes(' ' + tokenize(p).join(' ') + ' '));
+  return {
+    sentences: sents.length,
+    avgSentence: lens.length ? Math.round(lens.reduce((a, b) => a + b, 0) / lens.length) : 0,
+    longSentences: lens.filter(n => n > 30).length,
+    firstSentence: lens[0] || 0,
+    signposts, example: has(EXAMPLE).length > 0, analogy: has(ANALOGY).length > 0, recap: recapEnd, andChains,
+  };
+}
+
+// Offline 0-10 explanation score from structure signals (the AI rubric replaces it when connected).
+export function explainScore(p, mz = { total: 0 }, words = 100) {
+  let s = 0;
+  if (p.firstSentence && p.firstSentence <= 22) s += 2; else if (p.firstSentence <= 32) s += 1;
+  s += Math.min(2, p.signposts.length >= 3 ? 2 : p.signposts.length >= 1 ? 1 : 0);
+  if (p.example) s += 2;
+  if (p.analogy) s += 1;
+  if (p.recap) s += 1;
+  const mazeRate = words ? 100 * mz.total / words : 0;
+  s += mazeRate < 2 ? 2 : mazeRate < 5 ? 1 : 0;
+  s -= Math.min(2, p.longSentences + Math.floor(p.andChains / 2));
+  return Math.max(0, Math.min(10, s));
 }
 
 const clamp = (v, lo = 0, hi = 100) => Math.max(lo, Math.min(hi, v));
@@ -234,7 +330,7 @@ export function avgConfidence(confs) {
   return c.length ? Math.round(100 * avg(c)) : null;
 }
 
-// Per-minute rates for an arena round (restarts = max of self-reported and detected).
+// Per-minute rates for a round (restarts = max of self-reported and detected).
 export function roundRates(r) {
   const mins = Math.max((r.speakSec || 0) / 60, 0.25);
   const restarts = Math.max(r.repetitions || 0, r.selfRestarts || 0);
@@ -242,65 +338,80 @@ export function roundRates(r) {
 }
 
 // 0-100 score per skill from recent practice data; null = not measured yet.
+// Skills are grouped by the five problems SpeakForge is built around.
 export function skillScores(S) {
-  const rounds = lastN(S.sessions, 6).map(s => s.rounds[s.rounds.length - 1]).filter(r => r && r.speakSec >= 15);
+  const rounds = lastN(S.sessions, 8).map(s => s.rounds[s.rounds.length - 1]).filter(r => r && r.speakSec >= 15);
+  const real = lastN(S.reallife, 3).map(x => x.metrics).filter(Boolean);
   const rates = rounds.map(roundRates);
   const res = {};
   res['Repair fluency'] = rounds.length ? clamp(100 - 14 * avg(rates.map(r => r.freezesPerMin)) - 10 * avg(rates.map(r => r.restartsPerMin))) : null;
   const nm = lastN(S.naming, 3);
-  res['Lexical retrieval'] = nm.length ? clamp((100 - (avg(nm.map(n => n.avgMs || 7000)) - 1000) / 25) * avg(nm.map(n => n.acc)) / 100) : null;
+  res['Word retrieval'] = nm.length ? clamp((100 - (avg(nm.map(n => n.avgMs || 7000)) - 1200) / 25) * avg(nm.map(n => n.acc)) / 100) : null;
+  const vg = [...rounds.map(r => r.vaguePer100), ...real.map(m => m.vaguePer100)].filter(v => v != null);
+  const up = lastN(S.upgrades, 10);
+  res['Precise vocabulary'] = vg.length || up.length ? clamp(avg([...vg.map(v => 100 - v * 9), ...up.map(u => u.score)])) : null;
+  const fpm = [...rates.map(r => r.fillersPerMin), ...real.map(m => m.fillersPerMin)].filter(v => v != null);
+  const aw = lastN(S.awareness, 3).map(a => a.accuracy);
+  res['Filler control'] = fpm.length ? clamp(100 - 11 * avg(fpm) + (aw.length ? (avg(aw) - 50) / 10 : 0)) : null;
+  const ex = lastN(S.explains, 6).map(e => e.score);
+  const exSpeak = rounds.map(r => r.explainScore).filter(v => v != null);
+  res['Clear explanations'] = ex.length || exSpeak.length ? clamp(10 * avg([...ex, ...exSpeak])) : null;
   const reviewed = Object.values(S.srs || {}).filter(c => c.reviews);
-  res['Formulaic chunks'] = reviewed.length >= 5 ? clamp(100 * avg(reviewed.map(c => c.box)) / 4) : null;
+  res['Ready-made chunks'] = reviewed.length >= 5 ? clamp(100 * avg(reviewed.map(c => c.box)) / 4) : null;
   const wpms = rounds.map(r => r.wpm).filter(w => w > 0);
-  res['Pace'] = wpms.length ? clamp(100 - Math.abs(avg(wpms) - 155) * 1.3) : null;
-  res['Pausing (no fillers)'] = rounds.length ? clamp(100 - 12 * avg(rates.map(r => r.fillersPerMin))) : null;
+  res['Pace'] = wpms.length ? clamp(100 - Math.max(0, Math.abs(avg(wpms) - 150) - 10) * 1.4) : null;
   const art = [];
-  const dd = lastN(S.ddk, 3);
-  if (dd.length) art.push(clamp(100 * avg(dd.map(d => d.rate)) / 6.5));
-  const tw = lastN(S.twisters, 5);
-  if (tw.length) art.push(avg(tw.map(t => t.score)));
-  const pen = lastN(S.pen, 3);
-  if (pen.length) art.push(avg(pen.map(p => p.score)));
+  for (const [k, n] of [['twisters', 5], ['pen', 3]]) { const v = lastN(S[k], n).map(x => x.score).filter(x => x != null); if (v.length) art.push(avg(v)); }
+  const pairs = {};
+  (S.pairs || []).forEach(p => { pairs[p.group] = p.score; });
+  if (Object.keys(pairs).length) art.push(avg(Object.values(pairs)));
   const clar = rounds.map(r => r.clarity).filter(c => c != null);
   if (clar.length) art.push(avg(clar));
   res['Articulation'] = art.length ? clamp(avg(art)) : null;
-  const pairs = {};
-  (S.pairs || []).forEach(p => { pairs[p.group] = p.score; });
-  res['Pronunciation (sounds)'] = Object.keys(pairs).length ? clamp(avg(Object.values(pairs))) : null;
+  const pro = [...lastN(S.shadow, 5).map(x => x.score), ...lastN(S.prosody, 5).map(x => x.score)].filter(x => x != null);
+  res['Rhythm and pausing'] = pro.length ? clamp(avg(pro)) : null;
   const zn = lastN(S.zone, 3).map(z => z.pct);
   const arenaZone = rounds.map(r => r.zonePct).filter(z => z != null);
-  res['Volume & projection'] = zn.length || arenaZone.length ? clamp(avg([...zn, ...arenaZone])) : null;
+  res['Volume'] = zn.length || arenaZone.length ? clamp(avg([...zn, ...arenaZone])) : null;
+  const ex2 = lastN(S.exposures, 5);
   const anx = lastN(S.anxiety, 5).filter(a => a.after != null);
-  const rungs = Object.keys(S.exposure || {}).length;
-  res['Confidence'] = anx.length || rungs ? clamp((anx.length ? (10 - avg(anx.map(a => a.after))) * 7 : 35) + rungs * 2) : null;
-  const sh = lastN(S.shadow, 5).filter(x => x.score != null);
-  res['Prosody (shadowing)'] = sh.length ? clamp(avg(sh.map(x => x.score))) : null;
-  const structured = (S.sessions || []).filter(s => ['prep', 'creator', 'questions', 'tenWord'].includes(s.mode)).length;
-  res['Structure'] = structured ? clamp(structured * 8) : null;
+  const maxLevel = Math.max(0, ...(S.exposures || []).filter(e => e.after <= 40).map(e => e.level));
+  res['Calm on stage'] = ex2.length || anx.length ? clamp(avg([...ex2.map(e => 100 - e.after), ...anx.map(a => 100 - a.after * 10)]) * 0.7 + maxLevel * 5) : null;
   for (const k of Object.keys(res)) if (res[k] != null) res[k] = Math.round(res[k]);
   return res;
 }
 
+export const SKILL_GROUPS = {
+  'Losing words': ['Repair fluency', 'Word retrieval', 'Ready-made chunks'],
+  'Basic words': ['Precise vocabulary'],
+  'Fillers': ['Filler control'],
+  'Confusing explanations': ['Clear explanations', 'Pace'],
+  'Nerves': ['Calm on stage', 'Volume'],
+  'Clear voice': ['Articulation', 'Rhythm and pausing'],
+};
+
 export const SKILL_LINKS = {
   'Repair fluency': ['#/speak?mode=noRestart', 'No-Restart challenge'],
-  'Lexical retrieval': ['#/words?t=naming', 'Rapid naming'],
-  'Formulaic chunks': ['#/phrases', 'Phrase review'],
+  'Word retrieval': ['#/words?t=naming', 'Rapid word retrieval'],
+  'Ready-made chunks': ['#/phrases', 'Phrase review'],
+  'Precise vocabulary': ['#/words?t=upgrade', 'Word upgrade'],
+  'Filler control': ['#/fillers?t=live', 'Filler-free minute'],
+  'Clear explanations': ['#/explain', 'Explain gym'],
   'Pace': ['#/speak?mode=quick432', 'Quick 4/3/2'],
-  'Pausing (no fillers)': ['#/speak?mode=tenWord', '10-word sentences'],
-  'Articulation': ['#/mouth?t=pen', 'Pen-in-mouth reading'],
-  'Pronunciation (sounds)': ['#/mouth?t=pairs', 'Minimal pairs'],
-  'Volume & projection': ['#/voice?t=zone', 'Volume zone'],
-  'Confidence': ['#/voice?t=exposure', 'Exposure ladder'],
-  'Prosody (shadowing)': ['#/shadow?t=echo', 'Echo & score shadowing'],
-  'Structure': ['#/speak?mode=prep', 'PREP speech'],
+  'Articulation': ['#/mouth?t=pen', 'Pebble drill'],
+  'Rhythm and pausing': ['#/mouth?t=groups', 'Thought groups'],
+  'Volume': ['#/calm?t=zone', 'Volume zone'],
+  'Calm on stage': ['#/calm?t=audience', 'Virtual audience'],
 };
 
 // Picks today's focus: an untested core skill first (to get a baseline), otherwise the weakest one.
 export function focusOfDay(scores) {
-  const core = ['Repair fluency', 'Lexical retrieval', 'Volume & projection', 'Articulation', 'Pronunciation (sounds)', 'Formulaic chunks'];
-  const untested = core.find(k => scores[k] == null);
+  const core = ['Clear explanations', 'Filler control', 'Repair fluency', 'Precise vocabulary', 'Calm on stage', 'Word retrieval'];
+  const untested = core.find(k => k in scores && scores[k] == null);
   if (untested) return { skill: untested, reason: 'not measured yet. Get your baseline', link: SKILL_LINKS[untested] };
-  const [skill, score] = Object.entries(scores).filter(([, v]) => v != null).sort((a, b) => a[1] - b[1])[0];
+  const measured = Object.entries(scores).filter(([, v]) => v != null).sort((a, b) => a[1] - b[1]);
+  if (!measured.length) return { skill: 'Clear explanations', reason: 'start here', link: SKILL_LINKS['Clear explanations'] };
+  const [skill, score] = measured[0];
   return { skill, reason: `your weakest skill right now (${score}/100)`, link: SKILL_LINKS[skill] };
 }
 
@@ -317,6 +428,8 @@ export function weeklyReport(sessions, now = Date.now()) {
       wpm: rs.length ? Math.round(avg(rs.map(r => r.wpm))) : null,
       freezesPerMin: r1(avg(rates.map(r => r.freezesPerMin))),
       restartsPerMin: r1(avg(rates.map(r => r.restartsPerMin))),
+      fillersPerMin: r1(avg(rates.map(r => r.fillersPerMin))),
+      vaguePer100: r1(avg(rs.map(r => r.vaguePer100).filter(v => v != null))),
     };
   };
   return { thisWeek: sum(pick(now - W, now + 1)), lastWeek: sum(pick(now - 2 * W, now - W)) };
@@ -345,3 +458,67 @@ export const L1_PRIORITY = {
   Malayalam: ['V vs W', 'TH vs T', 'Z vs J', 'S vs SH', 'P vs F'],
   Other: ['V vs W', 'TH vs T', 'Short i vs long ee'],
 };
+
+// One analysis for any transcript: pace, fillers, mazes, vocabulary and explanation structure.
+export function speechReport(text, speakSec) {
+  const words = countWords(text);
+  const fill = countFillers(text);
+  const mz = mazes(text);
+  const lex = lexicalProfile(text);
+  const ex = explainProfile(text);
+  const mins = Math.max((speakSec || 0) / 60, 0.25);
+  return {
+    words, wpm: wordsPerMinute(words, speakSec), fillers: fill.total, fillerItems: fill.items, fillersPerMin: +(fill.total / mins).toFixed(1),
+    mazes: mz, mazesPerMin: +(mz.total / mins).toFixed(1), lex, vaguePer100: lex.vaguePer100, diversity: lex.diversity, explain: ex,
+    explainScore: explainScore(ex, mz, words),
+  };
+}
+
+// Words to highlight in a transcript: fillers, restarts and vague words.
+export function markup(text) {
+  const words = (text || '').split(/[ \t]+/).filter(Boolean);
+  const norm = words.map(w => tokenize(w)[0] || '');
+  const mark = new Array(words.length).fill('');
+  for (let i = 0; i < norm.length; i++) {
+    if (FILLER_WORDS.includes(norm[i])) mark[i] = 'fill';
+    else if (/^[a-z']+-$/.test(norm[i])) mark[i] = 'rep';
+    else if (VAGUE_STRICT.has(norm[i])) mark[i] = 'vague';
+    for (let n = 3; n >= 1; n--) {
+      if (i + 2 * n > norm.length) continue;
+      const a = norm.slice(i, i + n).join(' '), b = norm.slice(i + n, i + 2 * n).join(' ');
+      if (a && a === b && !(n === 1 && LEGIT_DOUBLES.has(a))) { for (let k = i; k < i + n; k++) mark[k] = 'rep'; break; }
+    }
+  }
+  return words.map((w, i) => [w, mark[i]]);
+}
+
+// ---------- thought groups: pause at boundaries, stress one word ----------
+export function parseGroups(text) {
+  const words = [];
+  text.split('/').forEach((g, gi, arr) => {
+    const toks = g.trim().split(/\s+/).filter(Boolean);
+    toks.forEach((w, i) => words.push({ w, key: tokenize(w)[0] || '', stress: /[A-Z]{2,}/.test(w.replace(/[^A-Za-z]/g, '')) && w.replace(/[^A-Za-z]/g, '') === w.replace(/[^A-Za-z]/g, '').toUpperCase(), boundary: i === toks.length - 1 && gi < arr.length - 1 }));
+  });
+  return words.filter(w => w.key);
+}
+
+// Aligns spoken words (with timings) to the passage and checks where the pauses fell.
+export function pauseFit(passage, spoken, minGap = 0.18) {
+  const P = parseGroups(passage);
+  const map = new Array(P.length).fill(-1);
+  let j = 0;
+  for (let i = 0; i < P.length && j < spoken.length; i++) {
+    for (let k = j; k < Math.min(spoken.length, j + 4); k++) if ((tokenize(spoken[k].w)[0] || '') === P[i].key) { map[i] = k; j = k + 1; break; }
+  }
+  let atBoundary = 0, boundaries = 0, inside = 0, pairs = 0;
+  for (let i = 0; i < P.length - 1; i++) {
+    if (map[i] < 0 || map[i + 1] < 0) continue;
+    pairs++;
+    const gap = spoken[map[i + 1]].s - spoken[map[i]].e;
+    if (P[i].boundary) { boundaries++; if (gap >= minGap) atBoundary++; } else if (gap >= 0.3) inside++;
+  }
+  const recall = boundaries ? atBoundary / boundaries : 0;
+  const precision = atBoundary + inside ? atBoundary / (atBoundary + inside) : 0;
+  return { score: Math.round(100 * (recall + precision) / 2), atBoundary, boundaries, inside, matched: map.filter(x => x >= 0).length, total: P.length };
+}
+

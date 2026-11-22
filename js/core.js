@@ -1,14 +1,15 @@
-import { dayKey, levelFromXp, computeStreak } from './metrics.js';
+import { dayKey, computeStreak } from './metrics.js';
 import { Mic, bindMic } from './audio.js';
 
 const KEY = 'speakforge.v1';
 
 export function defaultState() {
   return {
-    startDate: dayKey(), xp: 0, days: {}, sessions: [], naming: [], ddk: [], twisters: [], pairs: [], taboo: [],
+    startDate: dayKey(), days: {}, sessions: [], naming: [], ddk: [], twisters: [], pairs: [], taboo: [],
     category: [], pen: [], zone: [], shadow: [], anxiety: [], volume: { baseline: null }, srs: {}, exposure: {},
     exposureLog: [], partner: [], deep: [], accent: [],
-    settings: { l1: 'Hindi', accent: 'american', bridgeMs: 1800, cue: true, camera: false, ritual: true, dailyMinutes: 35, engine: 'auto' },
+    explains: [], upgrades: [], awareness: [], exposures: [], prosody: [], reallife: [], better: [],
+    settings: { l1: 'Hindi', accent: 'american', bridgeMs: 1800, cue: true, camera: false, ritual: true, dailyMinutes: 35, engine: 'auto', liveFillers: true, planSec: 20, audience: 0 },
     ai: { provider: 'none', auto: true, model: '', endpoint: '', key: '', deployment: '', apiVersion: '2024-10-21' },
   };
 }
@@ -18,6 +19,7 @@ function load() {
     const s = JSON.parse(localStorage.getItem(KEY));
     if (s && typeof s === 'object') {
       const d = defaultState();
+      delete s.xp;
       return { ...d, ...s, settings: { ...d.settings, ...(s.settings || {}) }, ai: { ...d.ai, ...(s.ai || {}) } };
     }
   } catch { /* fall through */ }
@@ -26,6 +28,15 @@ function load() {
 
 export const S = load();
 export function save() { localStorage.setItem(KEY, JSON.stringify(S)); renderXp(); }
+export function ensureArr(k) { if (!Array.isArray(S[k])) S[k] = []; return S[k]; }
+// Keeps your recent transcripts so vocabulary drills can use your own sentences.
+export function rememberText(text, source) {
+  const t = String(text || '').trim();
+  if (t.split(/\s+/).length < 6) return;
+  const arr = ensureArr('transcripts');
+  arr.push({ ts: Date.now(), source, text: t.slice(0, 6000) });
+  if (arr.length > 40) arr.splice(0, arr.length - 40);
+}
 export function replaceState(obj) {
   for (const k of Object.keys(S)) delete S[k];
   const d = defaultState();
@@ -42,13 +53,18 @@ export function addToDeck(phrase, cue, cat = 'Lost word') {
   return true;
 }
 
-export function logActivity(kind, xp, data = {}) {
+const KIND_LABEL = { speak: 'Speech', speak432: '4/3/2', speakCreator: 'Reel practice', benchmark: 'Benchmark', naming: 'Word retrieval', taboo: 'Taboo', upgrade: 'Word upgrade',
+  better: 'Say it better', warmup: 'Warm-up', twister: 'Tongue twister', pairs: 'Sound pairs', pen: 'Pebble drill', groups: 'Thought groups', zone: 'Volume zone',
+  ladder: 'Projection ladder', breath: 'Breathing', exposure: 'Exposure', realworld: 'Real-world moment', shadow: 'Shadowing', phrases: 'Phrase review',
+  partner: 'Conversation', accent: 'Accent lab', explain: 'Explanation', fillers: 'Filler drill', awareness: 'Filler awareness', audience: 'Audience exposure', reallife: 'Real-life review', video: 'Video review' };
+// Records a finished activity for today's plan and streak. (The old second argument, XP, is ignored: progress is measured, not awarded.)
+export function logActivity(kind, _xp, data = {}) {
   const k = dayKey();
   S.days[k] = S.days[k] || { acts: [] };
   S.days[k].acts.push({ kind, t: Date.now(), ...data });
-  S.xp += xp;
   save();
-  toast(`+${xp} XP · ${kind}`);
+  toast(`${KIND_LABEL[kind] || kind} done`);
+  window.dispatchEvent(new CustomEvent('sf:activity', { detail: { kind } }));
 }
 
 export function todayCount(kind) {
@@ -59,13 +75,17 @@ export function streak() {
   return computeStreak(Object.keys(S.days).filter(k => S.days[k].acts?.length), dayKey());
 }
 
+export function todayMinutesSpoken() {
+  const k = dayKey();
+  return Math.round(S.sessions.filter(s => dayKey(new Date(s.ts)) === k).reduce((a, s) => a + s.rounds.reduce((b, r) => b + (r.speakSec || 0), 0), 0) / 60);
+}
+
 export function renderXp() {
   const el = document.getElementById('xpbar');
   if (!el) return;
-  const l = levelFromXp(S.xp);
   const st = streak();
-  el.innerHTML = `<b>Level ${l.level}</b><br>${st ? `${st}-day streak` : 'Start your streak today'}
-    <div class="bar" title="${l.into} of ${l.need} XP to level ${l.level + 1}"><i style="width:${Math.round(100 * l.into / l.need)}%"></i></div>`;
+  const acts = (S.days[dayKey()]?.acts || []).length;
+  el.innerHTML = `<div class="streak"><b>${st}</b><span>${st === 1 ? 'day' : 'days'} in a row</span></div><span class="muted">${acts ? `${acts} drill${acts === 1 ? '' : 's'} today` : 'Nothing yet today'}</span>`;
 }
 
 // Returns a detached dummy element when not found so timers from a screen the user already left fail silently.

@@ -10,3 +10,4 @@ tests/*.png
 .venv/
 *.log
 
+tests/.reallife_tmp/

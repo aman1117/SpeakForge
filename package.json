@@ -1,1 +1,1 @@
-{"type":"module","name":"speakforge","private":true,"scripts":{"test":"node --test tests/"}}
+{"type":"module","name":"speakforge","private":true,"scripts":{"test":"node --test tests/*.test.mjs"}}

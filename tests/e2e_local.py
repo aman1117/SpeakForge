@@ -1,7 +1,7 @@
 """End-to-end test of PRIVATE mode: real server.py + real Whisper + real Ollama, real audio through the browser mic.
     python tests/e2e_local.py
 Needs: faster-whisper (or mlx-whisper on a Mac), praat-parselmouth, av, numpy, Ollama with at least one model.
-Speech input: Windows SAPI generates test WAVs (on macOS: `say -o file.aiff`), fed to Edge as a fake microphone.
+Speech input: macOS `say` (or Windows SAPI) generates test WAVs, fed to Chromium as a fake microphone.
 """
 import json
 import os
@@ -22,6 +22,11 @@ PASSAGE = "I can't stand bad apps. Back then, my first job was to plan the stack
 def make_wav(path, text):
     if os.path.exists(path):
         return
+    if sys.platform == 'darwin':
+        aiff = path[:-4] + '.aiff'
+        subprocess.run(['say', '-v', 'Samantha', '-o', aiff, text], check=True)
+        subprocess.run(['afconvert', '-f', 'WAVE', '-d', 'LEI16@16000', aiff, path], check=True)
+        return
     ps = ("Add-Type -AssemblyName System.Speech; $s=New-Object System.Speech.Synthesis.SpeechSynthesizer; "
           f"$s.SetOutputToWaveFile('{path}'); $s.Speak(\"{text}\"); $s.Dispose()")
     subprocess.run(['powershell', '-NoProfile', '-Command', ps], check=True)
@@ -41,7 +46,7 @@ def wait_server():
 
 
 def browser(p, wav):
-    return p.chromium.launch(channel='msedge', headless=True, args=[
+    return p.chromium.launch(channel=None if sys.platform == 'darwin' else 'msedge', headless=True, args=[
         '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', f"--use-file-for-fake-audio-capture={wav.replace(os.sep, '/')}"])
 
 
@@ -54,7 +59,8 @@ def main():
     env = {**os.environ, 'SPEAKFORGE_PORT': str(PORT)}
     log_path = os.path.join(TMP, 'server.log')
     log = open(log_path, 'w', encoding='utf-8')  # a file, not a pipe: an unread pipe fills up and blocks the server
-    srv = subprocess.Popen([sys.executable, os.path.join(ROOT, 'server.py')], cwd=ROOT, env=env, stdout=log, stderr=subprocess.STDOUT, text=True)
+    venv = os.path.join(ROOT, '.venv', 'bin', 'python')
+    srv = subprocess.Popen([venv if os.path.exists(venv) else sys.executable, os.path.join(ROOT, 'server.py')], cwd=ROOT, env=env, stdout=log, stderr=subprocess.STDOUT, text=True)
     errors = []
     try:
         st = wait_server()
@@ -70,6 +76,7 @@ def main():
             print('rail:', page.inner_text('#engine').replace('\n', ' | '))
             page.goto(base + '#/speak?mode=oneMin')
             page.evaluate("document.querySelectorAll('details').forEach(d => d.open = true)")
+            page.check('input[name=plan][value=\"0\"]', force=True)
             page.uncheck('#rit')
             page.uncheck('#cam')
             page.click('#go')
@@ -78,14 +85,15 @@ def main():
             print('live local transcript:', page.inner_text('#tr')[:160])
             page.wait_for_timeout(12000)
             page.click('#stop')
-            page.get_by_text('Coach notes').first.wait_for(timeout=120000)
+            page.get_by_text('One thing to fix next').first.wait_for(timeout=120000)
+            page.evaluate("document.querySelectorAll('details').forEach(d => d.open = true)")
             kpis = page.inner_text('.kpi')
             print('KPIs:', ' | '.join(kpis.split('\n')))
             page.wait_for_function("/Measured on your computer|failed/.test((document.querySelector('#theoout')||{innerText:''}).innerText)", timeout=180000)
             theo = page.inner_text('#theoout')
             assert 'Measured on your computer' in theo, theo
             print('you vs theo (local deep analysis):', theo.replace('\n', ' ')[:260])
-            page.wait_for_function("/Next time|Corrections|Native-style|AI error/.test((document.querySelector('#aiout')||{innerText:''}).innerText)", timeout=300000)
+            page.wait_for_function("/listener took away|Corrections|clearer way|AI error/.test((document.querySelector('#aiout')||{innerText:''}).innerText)", timeout=300000)
             ai = page.inner_text('#aiout')
             assert 'AI error' not in ai, ai
             print('local AI feedback:', ai.replace('\n', ' ')[:260])

@@ -7,6 +7,8 @@ Endpoints (localhost only):
     POST /api/analyze       audio -> pace/pauses/pitch/R metrics (Whisper + Praat)
     POST /api/accent        audio -> R strength + vowel formants (Praat)
     POST /api/chat          OpenAI-style chat body -> local Ollama
+    GET|POST|DELETE /api/enroll   your voiceprint: status | audio -> learn it | forget it
+    POST /api/reallife      long recording (up to 2 GB) -> {job}; poll GET /api/job?id=... for speakers + words
 """
 import http.server
 import json
@@ -21,12 +23,16 @@ import urllib.request
 ROOT = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(ROOT, 'tools'))
 import engine  # noqa: E402
+import reallife  # noqa: E402
 
 PORT = int(os.environ.get('SPEAKFORGE_PORT', '8765'))
 OLLAMA = os.environ.get('OLLAMA_HOST_URL', 'http://127.0.0.1:11434').rstrip('/')
-PREFERRED_LLMS = [m for m in [os.environ.get('SPEAKFORGE_LLM')] if m] + ['gemma3:12b', 'gemma3:27b', 'qwen2.5:14b', 'llama3.1:8b', 'gemma3:4b', 'llama3.2:3b']
+PREFERRED_LLMS = [m for m in [os.environ.get('SPEAKFORGE_LLM')] if m] + ['gemma4:26b', 'gemma4:26b-mlx', 'gemma4:31b', 'gemma4:12b', 'gemma3:12b', 'gemma3:27b', 'qwen2.5:14b', 'llama3.1:8b', 'gemma3:4b', 'llama3.2:3b']
 MAX_BODY = 200 * 1024 * 1024
+MAX_RECORDING = 2 * 1024 * 1024 * 1024
 READY = threading.Event()
+SPEAKER_ID = reallife.available()
+JOBS, JOBS_LOCK, ONE_AT_A_TIME = {}, threading.Lock(), threading.Semaphore(1)
 
 
 def _fetch_models():
@@ -64,6 +70,40 @@ def pick_model(models, requested=None):
     return models[0] if models else None
 
 
+def start_job(src):
+    """Analyse a real-life recording in the background; the temp file is deleted when done."""
+    import time
+    import uuid
+    jid = uuid.uuid4().hex[:12]
+    job = {'status': 'running', 'stage': 'queued', 'progress': 0.0, 'at': time.time()}
+    with JOBS_LOCK:
+        for k in [k for k, j in JOBS.items() if j['status'] != 'running' and time.time() - j['at'] > 3600]:
+            del JOBS[k]
+        JOBS[jid] = job
+    threading.Thread(target=_run_job, args=(job, src), daemon=True).start()
+    return jid
+
+
+def _run_job(job, src):
+    import time
+    try:
+        with ONE_AT_A_TIME:
+            res = reallife.analyze(src, progress=lambda stage, frac: job.update(stage=stage, progress=round(frac, 3)))
+        job.update(result=res, stage='done', progress=1.0, status='done')
+    except ValueError as e:
+        job.update(error=str(e), status='error')
+    except Exception as e:
+        import traceback
+        sys.stderr.write('[speakforge] reallife error: ' + ''.join(traceback.format_exception(type(e), e, e.__traceback__)))
+        job.update(error=f'{type(e).__name__}: {e}', status='error')
+    finally:
+        job['at'] = time.time()
+        try:
+            os.unlink(src)
+        except OSError:
+            pass
+
+
 class Handler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *a, **kw):
         super().__init__(*a, directory=ROOT, **kw)
@@ -90,8 +130,24 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             return self._json(200, {
                 'whisper': engine.describe(), 'ready': READY.is_set(), 'platform': f'{platform.system()} {platform.machine()}',
                 'ollama': models is not None, 'models': models or [], 'model': pick_model(models or []),
+                'speaker_id': SPEAKER_ID, 'enrolled': reallife.voiceprint() is not None,
             })
+        if self.path.startswith('/api/enroll'):
+            vp = reallife.voiceprint()
+            return self._json(200, {'enrolled': vp is not None, 'ts': vp[1].get('ts') if vp else None, 'seconds': vp[1].get('seconds') if vp else None})
+        if self.path.startswith('/api/job'):
+            import urllib.parse
+            job = JOBS.get((urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query).get('id') or [''])[0])
+            if not job:
+                return self._json(404, {'error': 'unknown or expired job'})
+            keys = {'running': ('status', 'stage', 'progress'), 'done': ('status', 'result'), 'error': ('status', 'error')}[job['status']]
+            return self._json(200, {k: job[k] for k in keys})
         return super().do_GET()
+
+    def do_DELETE(self):
+        if self.path.split('?')[0] == '/api/enroll':
+            return self._json(200, reallife.forget())
+        return self._json(404, {'error': 'unknown endpoint'})
 
     def _body(self):
         n = int(self.headers.get('Content-Length') or 0)
@@ -99,13 +155,26 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             raise ValueError('empty or too large request body')
         return self.rfile.read(n)
 
-    def _audio_file(self):
-        data = self._body()
+    def _audio_file(self, limit=MAX_BODY):
+        """Streams the request body to a temp file (1 MB at a time, so a 2 GB recording never sits in memory)."""
+        n = int(self.headers.get('Content-Length') or 0)
+        if n <= 0 or n > limit:
+            raise ValueError('empty or too large request body' if limit == MAX_BODY else f'empty or too large recording (max {limit >> 30} GB)')
         ctype = self.headers.get('Content-Type', '')
-        ext = '.wav' if 'wav' in ctype else '.mp4' if 'mp4' in ctype else '.webm'
+        ext = next((e for k, e in (('wav', '.wav'), ('mp4', '.mp4'), ('m4a', '.m4a'), ('aac', '.m4a'), ('mpeg', '.mp3'), ('mp3', '.mp3'), ('ogg', '.ogg')) if k in ctype), '.webm')
         f = tempfile.NamedTemporaryFile(suffix=ext, delete=False)
-        f.write(data)
-        f.close()
+        try:
+            while n > 0:
+                chunk = self.rfile.read(min(n, 1 << 20))
+                if not chunk:
+                    raise ConnectionResetError('upload interrupted')
+                f.write(chunk)
+                n -= len(chunk)
+            f.close()
+        except BaseException:
+            f.close()
+            os.unlink(f.name)
+            raise
         return f.name
 
     def do_POST(self):
@@ -113,6 +182,14 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         try:
             if path == '/api/chat':
                 return self._chat()
+            if path == '/api/reallife':
+                return self._json(200, {'job': start_job(self._audio_file(MAX_RECORDING))})
+            if path == '/api/enroll':
+                src = self._audio_file()
+                try:
+                    return self._json(200, reallife.enroll(src))
+                finally:
+                    os.unlink(src)
             if path not in ('/api/transcribe', '/api/analyze', '/api/accent'):
                 return self._json(404, {'error': 'unknown endpoint'})
             src = self._audio_file()
@@ -162,6 +239,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         model = pick_model(models, req.get('model'))
         if not model:
             return self._json(503, {'error': 'No Ollama model installed. Run: ollama pull gemma3:12b'})
+        if req.get('schema'):
+            return self._chat_native(model, req)
         body = json.dumps({'model': model, 'messages': req.get('messages', []), 'temperature': req.get('temperature', 0.4), 'stream': False}).encode()
         r = urllib.request.Request(f'{OLLAMA}/v1/chat/completions', data=body, headers={'Content-Type': 'application/json'})
         try:
@@ -171,6 +250,25 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             return self._json(e.code, {'error': e.read().decode(errors='replace')[:300]})
         out['model'] = model
         return self._json(200, out)
+
+    def _chat_native(self, model, req):
+        # Native Ollama API: the JSON schema is enforced while decoding, thinking is off for speed, the model stays loaded.
+        payload = {'model': model, 'messages': req.get('messages', []), 'stream': False, 'format': req['schema'], 'keep_alive': '30m',
+                   'think': False, 'options': {'temperature': req.get('temperature', 0.4)}}
+        for attempt in (0, 1):
+            r = urllib.request.Request(f'{OLLAMA}/api/chat', data=json.dumps(payload).encode(), headers={'Content-Type': 'application/json'})
+            try:
+                with urllib.request.urlopen(r, timeout=300) as resp:
+                    out = json.load(resp)
+                break
+            except urllib.error.HTTPError as e:
+                err = e.read().decode(errors='replace')[:300]
+                if attempt == 0 and 'think' in err:
+                    payload.pop('think')
+                    continue
+                return self._json(e.code, {'error': err})
+        content = (out.get('message') or {}).get('content', '')
+        return self._json(200, {'model': model, 'choices': [{'message': {'role': 'assistant', 'content': content}}]})
 
 
 class Server(http.server.ThreadingHTTPServer):

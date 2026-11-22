@@ -2,10 +2,11 @@
 # One-time setup for an Apple Silicon Mac (M1–M5): everything runs on your Mac, no cloud APIs.
 #   - Whisper speech recognition on the GPU via Apple's MLX (mlx-whisper, large-v3-turbo)
 #   - Praat voice analysis (pitch, formants, R strength) via parselmouth
-#   - A local AI coach via Ollama (default gemma3:12b; on an M5 Max try: SPEAKFORGE_LLM=gemma3:27b ./setup_mac.sh)
+#   - Speaker separation for real-life recordings via SpeechBrain ECAPA voiceprints
+#   - A local AI coach via Ollama (default gemma4:26b, a fast mixture-of-experts model; 16 GB RAM Macs: SPEAKFORGE_LLM=gemma4:12b ./setup_mac.sh)
 set -euo pipefail
 cd "$(dirname "$0")"
-MODEL="${SPEAKFORGE_LLM:-gemma3:12b}"
+MODEL="${SPEAKFORGE_LLM:-gemma4:26b}"
 
 if [[ "$(uname -s)" != "Darwin" || "$(uname -m)" != "arm64" ]]; then
   echo "This script is for Apple Silicon Macs. On other systems: pip install faster-whisper praat-parselmouth av numpy"
@@ -18,7 +19,7 @@ fi
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install --quiet --upgrade pip
-python -m pip install --quiet mlx-whisper praat-parselmouth av numpy
+python -m pip install --quiet mlx-whisper praat-parselmouth av numpy speechbrain
 
 echo "==> 2/4 Ollama (local AI)"
 if ! command -v ollama >/dev/null; then
@@ -32,7 +33,7 @@ fi
 echo "==> 3/4 AI model: $MODEL"
 ollama pull "$MODEL"
 
-echo "==> 4/4 Whisper model (one-time download, about 1.6 GB)"
+echo "==> 4/4 Whisper + speaker models (one-time download, about 1.7 GB)"
 python - <<'PY'
 import sys, tempfile, wave
 import numpy as np
@@ -43,6 +44,12 @@ with wave.open(p, 'wb') as w:
     w.setnchannels(1); w.setsampwidth(2); w.setframerate(16000); w.writeframes(np.zeros(16000, dtype=np.int16).tobytes())
 engine.transcribe(p)
 print('Speech engine ready:', engine.describe())
+try:
+    import reallife
+    reallife.encoder()
+    print('Speaker recognition ready (ECAPA voiceprints for Real life recordings)')
+except Exception as e:
+    print('Speaker recognition skipped for now (it downloads on first use):', e)
 PY
 
 chmod +x start.sh

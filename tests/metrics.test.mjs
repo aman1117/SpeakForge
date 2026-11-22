@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   countWords, wordsPerMinute, countFillers, findRepetitions, pauseStats, similarity, missedWords, containsPhrase,
   VoiceTracker, speechThreshold, countBursts, reviewCard, dueCards, levelFromXp, computeStreak, weekNumber, coachNotes,
+  lexicalProfile, mattr, mazes, explainProfile, explainScore, speechReport, pauseFit, parseGroups,
 } from '../js/metrics.js';
 
 test('word counting and wpm', () => {
@@ -107,12 +108,13 @@ test('speech threshold is capped for noisy calibration', () => {
 });
 
 test('coach notes react to freezes, restarts and volume', () => {
-  const notes = coachNotes({ wpm: 95, longPausesPerMin: 4, repetitions: 5, fillers: 6, loudnessDelta: 1 }).join(' ');
+  const notes = coachNotes({ wpm: 95, speakSec: 60, longPausesPerMin: 4, repetitions: 5, fillers: 6, loudnessDelta: 1, vaguePer100: 8, vagueItems: { thing: 2 } }).join(' ');
   assert.match(notes, /slow/);
   assert.match(notes, /BRIDGE/);
   assert.match(notes, /restart/);
   assert.match(notes, /fillers/);
   assert.match(notes, /Project/);
+  assert.match(notes, /vague/);
 });
 
 import { skillScores, focusOfDay, weeklyReport, extractJson, avgConfidence, roundRates } from '../js/metrics.js';
@@ -129,20 +131,21 @@ test('roundRates uses the larger of self-reported and detected restarts', () => 
 test('skillScores: null when untested, lower for more freezes', () => {
   const empty = { sessions: [], naming: [], srs: {}, ddk: [], twisters: [], pen: [], pairs: [], zone: [], anxiety: [], exposure: {}, shadow: [] };
   assert.equal(skillScores(empty)['Repair fluency'], null);
+  assert.equal(skillScores(empty)['Clear explanations'], null);
   const good = skillScores({ ...empty, sessions: [sess(1, { freezes: 0 })] })['Repair fluency'];
   const bad = skillScores({ ...empty, sessions: [sess(1, { freezes: 5, selfRestarts: 3 })] })['Repair fluency'];
   assert.equal(good, 100);
   assert.ok(bad < 10, `bad=${bad}`);
-  const nm = skillScores({ ...empty, naming: [{ avgMs: 1000, acc: 100 }] })['Lexical retrieval'];
+  const nm = skillScores({ ...empty, naming: [{ avgMs: 1000, acc: 100 }] })['Word retrieval'];
   assert.equal(nm, 100);
 });
 
 test('focusOfDay picks untested core skill first, then the weakest', () => {
-  assert.equal(focusOfDay({ 'Repair fluency': null }).skill, 'Repair fluency');
-  const all = { 'Repair fluency': 80, 'Lexical retrieval': 70, 'Volume & projection': 30, 'Articulation': 90, 'Pronunciation (sounds)': 60, 'Formulaic chunks': 50, 'Pace': null };
+  assert.equal(focusOfDay({ 'Clear explanations': null, 'Repair fluency': 50 }).skill, 'Clear explanations');
+  const all = { 'Clear explanations': 70, 'Filler control': 60, 'Repair fluency': 80, 'Precise vocabulary': 65, 'Calm on stage': 30, 'Word retrieval': 70, 'Pace': null };
   const f = focusOfDay(all);
-  assert.equal(f.skill, 'Volume & projection');
-  assert.match(f.link[0], /voice/);
+  assert.equal(f.skill, 'Calm on stage');
+  assert.match(f.link[0], /calm/);
 });
 
 test('weeklyReport splits this week and last week', () => {
@@ -161,4 +164,51 @@ test('extractJson handles fences and chatter; avgConfidence ignores zeros', () =
   assert.equal(extractJson('no json'), null);
   assert.equal(avgConfidence([0.9, 0, 0.7]), 80);
   assert.equal(avgConfidence([]), null);
+});
+
+test('vocabulary: vague words, diversity that does not punish long talks', () => {
+  const p = lexicalProfile('The thing is the app is very good and the stuff works, um, really nice');
+  assert.equal(p.vagueItems.thing, 1);
+  assert.equal(p.vagueItems.very, 1);
+  assert.ok(!('um' in p.vagueItems));
+  assert.ok(p.vaguePer100 > 20);
+  assert.equal(lexicalProfile('The bottleneck was the payment service, so we refactored it.').vagueCount, 0);
+  const rep = Array(200).fill('we ship the feature').join(' ').split(' ');
+  assert.ok(mattr(rep) < 0.2, 'repetitive speech has low diversity');
+  assert.ok(mattr('alpha beta gamma delta epsilon zeta eta theta'.split(' ')) === 1);
+});
+
+test('mazes count false starts, repeats and self-corrections', () => {
+  const m = mazes('I- I want to, I mean, we we should ship it');
+  assert.equal(m.fragments, 1);
+  assert.equal(m.repetitions, 1);
+  assert.equal(m.revisions, 1);
+  assert.equal(mazes('We should ship it on Friday.').total, 0);
+});
+
+test('explanation structure: point first, signposts, example, recap', () => {
+  const good = 'Caching keeps a copy close so you get it faster. For example, your browser keeps images. It is like a fridge next to your desk. In short, it saves trips.';
+  const bad = 'So basically there is this thing and the server and then the browser and it goes and comes back and the database is also there and sometimes it is slow and we have to wait and then we do the other thing';
+  const g = explainProfile(good), b = explainProfile(bad);
+  assert.ok(g.example && g.analogy && g.recap);
+  assert.ok(g.firstSentence <= 12);
+  assert.ok(b.andChains >= 1 && b.longSentences >= 1);
+  assert.ok(explainScore(g, mazes(good), 30) >= 8);
+  assert.ok(explainScore(b, mazes(bad), 45) <= 3);
+});
+
+test('speechReport combines pace, fillers and vocabulary', () => {
+  const r = speechReport('Um, the thing is, uh, I think it is very good.', 30);
+  assert.equal(r.fillers, 2);
+  assert.equal(r.fillersPerMin, 4);
+  assert.ok(r.vaguePer100 > 0);
+});
+
+test('thought groups: pauses at boundaries score high, mid-group pauses lower it', () => {
+  const text = 'An API / is basically a MENU for software.';
+  assert.deepEqual(parseGroups(text).filter(w => w.boundary).map(w => w.key), ['api']);
+  assert.ok(parseGroups(text).find(w => w.key === 'menu').stress);
+  const words = (gapAfter) => 'an api is basically a menu for software'.split(' ').map((w, i, a) => ({ w, s: i * 0.4 + (i > gapAfter ? 0.5 : 0), e: i * 0.4 + 0.3 + (i > gapAfter ? 0.5 : 0) }));
+  assert.equal(pauseFit(text, words(1)).score, 100);
+  assert.ok(pauseFit(text, words(4)).score < 50);
 });
