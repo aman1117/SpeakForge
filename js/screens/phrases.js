@@ -15,12 +15,12 @@ export function render(main) {
   const byCat = {};
   all.forEach(c => { (byCat[c.cat] = byCat[c.cat] || []).push(c); });
   main.innerHTML = `
-    <h1>🧩 Phrase Bank</h1>
+    <h1>Phrases</h1>
     <p class="sub">Fluent speakers don't build sentences word by word; they pull <b>ready-made chunks</b> (“to be clear”, “the thing is”, “which means”). Studies on formulaic sequences show learning chunks directly improves speaking fluency. Spaced repetition makes them automatic.</p>
     <div class="grid g2">
       <div class="card hl"><h2>${due.length} phrases due</h2>
         <p>You see a <b>situation</b>. Say a full sentence that uses the right phrase. If the recogniser hears the phrase, it counts automatically.</p>
-        <button id="rev" ${due.length ? '' : 'disabled'}>Review now ▶</button><div id="play"></div></div>
+        <button id="rev" ${due.length ? '' : 'disabled'}>Review now</button><div id="play"></div></div>
       <div class="card"><h2>Add your own phrase</h2>
         <input id="np" placeholder="phrase, e.g. “that being said”" style="width:100%"><br><br>
         <input id="nc" placeholder="when to use it" style="width:100%"><br><br><button class="ghost" id="add">Add</button>
@@ -52,7 +52,7 @@ async function review(main, queue) {
       <div class="prompt">${esc(c.cue.replace(new RegExp(c.phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), '____'))}</div><p class="muted" style="text-align:center">Say a sentence using the ${c.cat === 'Lost word' ? `word (starts with “${esc(c.phrase[0])}”)` : 'phrase'}…</p>
       <p style="text-align:center" id="ans" class="hidden"><b style="font-size:20px">“${esc(c.phrase)}”</b></p>
       <div class="transcript" id="tr"></div><br>
-      <div class="row"><button class="ghost" id="reveal">Reveal</button><span class="spacer"></span><button class="red" id="bad">✘ Again</button><button class="green" id="good">✔ Got it</button></div></div>`;
+      <div class="row"><button class="ghost" id="reveal">Reveal</button><span class="spacer"></span><button class="red" id="bad">Again</button><button class="green" id="good">Got it</button></div></div>`;
     $('#reveal').onclick = () => { $('#ans').classList.remove('hidden'); say(c.phrase); };
     const verdict = await new Promise(res => {
       let done = false;
@@ -72,6 +72,6 @@ async function review(main, queue) {
   }
   await l?.stop();
   logActivity('phrases', 5 + right * 2);
-  $('#play').innerHTML = `<br><p class="ok"><b>${right}/${queue.length}</b> recalled. Now use 3 of them in your next Speaking Arena session!</p><button class="ghost" id="back">Back</button>`;
+  $('#play').innerHTML = `<br><p class="ok"><b>${right}/${queue.length}</b> recalled. Now use 3 of them in your next speech!</p><button class="ghost" id="back">Back</button>`;
   $('#back').onclick = () => render(main);
 }

@@ -26,7 +26,8 @@ if ($Reminder) {
 
 $listening = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue
 if (-not $listening) {
-    Start-Process python -ArgumentList '-m', 'http.server', $port, '--bind', '127.0.0.1' -WindowStyle Hidden -WorkingDirectory $PSScriptRoot
+    $env:SPEAKFORGE_PORT = "$port"
+    Start-Process python -ArgumentList 'server.py' -WindowStyle Hidden -WorkingDirectory $PSScriptRoot
     Start-Sleep -Seconds 1
 }
 Start-Process "msedge" "http://localhost:$port/"

@@ -45,6 +45,7 @@ def main():
         page.click('#savea')
 
         page.goto(base + '#/speak?mode=oneMin')
+        page.evaluate("document.querySelectorAll('details').forEach(d => d.open = true)")
         page.uncheck('#rit')
         page.uncheck('#cam')
         page.click('#go')
@@ -80,7 +81,7 @@ def main():
         page.wait_for_selector('#send', timeout=15000)
         page.wait_for_timeout(800)
         page.click('#send')
-        page.get_by_text('🧑').first.wait_for(timeout=10000)
+        page.wait_for_function("(document.querySelector('#log')||{innerText:''}).innerText.includes('You')", timeout=10000)
         page.wait_for_function("document.querySelectorAll('#log p').length >= 3 && !!document.querySelector('#send')", timeout=10000)
         page.click('#endc')  # ending mid-turn must not hang
         page.get_by_text('Conversation saved').first.wait_for(timeout=5000)

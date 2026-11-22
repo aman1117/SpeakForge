@@ -14,6 +14,7 @@ export class Mic {
     if (this.stream) return;
     this.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: false } });
     this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (this.ctx.state === 'suspended') { try { await this.ctx.resume(); } catch { /* Safari needs a user gesture */ } }
     const src = this.ctx.createMediaStreamSource(this.stream);
     this.analyser = this.ctx.createAnalyser();
     this.analyser.fftSize = 2048;
@@ -74,12 +75,19 @@ export class Recorder {
   }
 }
 
+// 'browser' = Web Speech API (Edge/Chrome/Safari); 'local' = Whisper on this computer via server.py.
+let LISTEN_MODE = 'browser';
+let MIC = null;
+export function setListenMode(m) { LISTEN_MODE = m; }
+export function listenMode() { return LISTEN_MODE; }
+export function bindMic(m) { MIC = m; }
+
 export function speechSupported() {
-  return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+  return LISTEN_MODE === 'local' || !!(window.SpeechRecognition || window.webkitSpeechRecognition);
 }
 
-// Continuous recognition that auto-restarts (Chrome/Edge end sessions after silence).
-export class Listener {
+// Continuous recognition that auto-restarts (Chrome/Edge/Safari end sessions after silence).
+class BrowserListener {
   constructor({ onText, lang = 'en-US' } = {}) {
     this.onText = onText || (() => {});
     this.lang = lang;
@@ -131,15 +139,138 @@ export class Listener {
   }
 }
 
+// Local Whisper listener: splits speech into phrases at pauses, transcribes each phrase on this computer.
+// Same interface as BrowserListener: finalText grows phrase by phrase, interim shows the phrase in progress.
+class LocalListener {
+  constructor({ onText } = {}) {
+    this.onText = onText || (() => {});
+    this.finalText = '';
+    this.interim = '';
+    this.confs = [];
+    this.active = false;
+  }
+  start() {
+    if (!MIC || !MIC.ctx || !MIC.stream) return false;
+    this.active = true;
+    this.finalText = ''; this.interim = ''; this.confs = [];
+    const ctx = MIC.ctx;
+    this.rate = ctx.sampleRate;
+    this.seg = []; this.segLen = 0; this.pre = []; this.voicedMs = 0; this.silentMs = 0;
+    this.noise = -60; this.chain = Promise.resolve(); this.interimBusy = false; this.lastInterim = 0;
+    this.src = ctx.createMediaStreamSource(MIC.stream);
+    this.proc = ctx.createScriptProcessor(4096, 1, 1);
+    this.proc.onaudioprocess = e => this._onAudio(e.inputBuffer.getChannelData(0));
+    this.src.connect(this.proc);
+    this.proc.connect(ctx.destination);
+    this._kill = () => this._teardown();
+    ACTIVE.add(this._kill);
+    return true;
+  }
+  _onAudio(data) {
+    if (!this.active) return;
+    const chunk = new Float32Array(data);
+    let sum = 0;
+    for (let i = 0; i < chunk.length; i++) sum += chunk[i] * chunk[i];
+    const db = 20 * Math.log10(Math.sqrt(sum / chunk.length) || 1e-6);
+    this.noise = db < this.noise ? db : this.noise + 0.02;
+    const thr = Math.min(Math.max(this.noise + 12, -58), -38);
+    const ms = 1000 * chunk.length / this.rate;
+    const voiced = db >= thr;
+    if (this.segLen === 0 && !voiced) {
+      this.pre.push(chunk);
+      while (this.pre.length > 2) this.pre.shift();
+      return;
+    }
+    if (this.segLen === 0) { for (const p of this.pre) { this.seg.push(p); this.segLen += p.length; } this.pre = []; }
+    this.seg.push(chunk); this.segLen += chunk.length;
+    if (voiced) { this.voicedMs += ms; this.silentMs = 0; } else this.silentMs += ms;
+    const segSec = this.segLen / this.rate;
+    if ((this.silentMs >= 650 && this.voicedMs >= 250) || segSec > 12) this._finalize();
+    else if (this.silentMs >= 1500 && this.voicedMs < 250) this._reset();
+    else if (this.voicedMs >= 600 && !this.interimBusy && performance.now() - this.lastInterim > 1200) this._interim();
+  }
+  _samples() {
+    const out = new Float32Array(this.segLen);
+    let o = 0;
+    for (const c of this.seg) { out.set(c, o); o += c.length; }
+    return resample16k(out, this.rate);
+  }
+  _reset() { this.seg = []; this.segLen = 0; this.voicedMs = 0; this.silentMs = 0; }
+  _interim() {
+    this.interimBusy = true;
+    this.lastInterim = performance.now();
+    const wav = toWav(this._samples(), 16000);
+    transcribeLocal(wav, true).then(r => { if (this.active && r.text) { this.interim = r.text; this.onText(this.text()); } }).catch(() => {}).finally(() => { this.interimBusy = false; });
+  }
+  _finalize() {
+    const wav = toWav(this._samples(), 16000);
+    this._reset();
+    this.chain = this.chain.then(() => transcribeLocal(wav).then(r => {
+      if (r.text) { this.finalText += r.text.trim().replace(/[.?!]?$/, '.') + ' '; if (r.confidence != null) this.confs.push(r.confidence); }
+      this.interim = '';
+      this.onText(this.text());
+    }).catch(() => {}));
+  }
+  text() { return (this.finalText + ' ' + this.interim).trim(); }
+  _teardown() {
+    this.active = false;
+    try { this.proc.disconnect(); this.src.disconnect(); } catch { /* ignore */ }
+  }
+  async stop() {
+    ACTIVE.delete(this._kill);
+    if (this.active && this.voicedMs >= 200) this._finalize();
+    this._teardown();
+    await Promise.race([this.chain, new Promise(r => setTimeout(r, 15000))]);
+    this.interim = '';
+    return this.text();
+  }
+}
+
+export class Listener {
+  constructor(opts) { this.impl = LISTEN_MODE === 'local' ? new LocalListener(opts) : new BrowserListener(opts); }
+  get finalText() { return this.impl.finalText; }
+  get interim() { return this.impl.interim; }
+  get confs() { return this.impl.confs; }
+  start() { return this.impl.start(); }
+  text() { return this.impl.text(); }
+  stop() { return this.impl.stop(); }
+}
+
+async function transcribeLocal(wav, partial = false) {
+  const r = await fetch(`api/transcribe?fast=1${partial ? '&partial=1' : ''}`, { method: 'POST', body: wav, headers: { 'Content-Type': 'audio/wav' } });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+function resample16k(input, fromRate) {
+  if (fromRate === 16000) return input;
+  const ratio = fromRate / 16000, out = new Float32Array(Math.floor(input.length / ratio));
+  for (let i = 0; i < out.length; i++) { const x = i * ratio, i0 = Math.floor(x), f = x - i0; out[i] = (input[i0] || 0) * (1 - f) + (input[i0 + 1] || 0) * f; }
+  return out;
+}
+
+function toWav(samples, rate) {
+  const buf = new ArrayBuffer(44 + samples.length * 2);
+  const v = new DataView(buf);
+  const w = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+  w(0, 'RIFF'); v.setUint32(4, 36 + samples.length * 2, true); w(8, 'WAVE'); w(12, 'fmt ');
+  v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, rate, true);
+  v.setUint32(28, rate * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, 'data'); v.setUint32(40, samples.length * 2, true);
+  for (let i = 0; i < samples.length; i++) { const s = Math.max(-1, Math.min(1, samples[i])); v.setInt16(44 + i * 2, s < 0 ? s * 0x8000 : s * 0x7fff, true); }
+  return new Blob([buf], { type: 'audio/wav' });
+}
+
+// Prefer natural, on-device voices. macOS ships novelty voices (Albert, Bells, Zarvox…) that must never be picked.
+const NOVELTY = /albert|bad news|bahh|bells|boing|bubbles|cellos|good news|jester|organ|superstar|trinoids|whisper|wobble|zarvox|deranged|hysterical|pipe organ|fred|junior|ralph|kathy|princess/i;
+const PREFERRED = [/ava \(premium\)|ava \(enhanced\)/i, /zoe \(premium\)|zoe \(enhanced\)/i, /evan \(enhanced\)|nathan \(enhanced\)/i, /samantha/i, /^alex$/i, /aria|jenny|guy/i, /natural/i, /google us english/i];
 let cachedVoice = null;
 export function pickVoice() {
   if (cachedVoice) return cachedVoice;
-  const vs = speechSynthesis.getVoices();
-  cachedVoice = vs.find(v => /en-US/i.test(v.lang) && /natural|aria|jenny|guy|google us/i.test(v.name))
-    || vs.find(v => /en-US/i.test(v.lang)) || vs.find(v => /^en/i.test(v.lang)) || null;
+  const vs = speechSynthesis.getVoices().filter(v => /^en[-_]US/i.test(v.lang) && !NOVELTY.test(v.name));
+  for (const re of PREFERRED) { const v = vs.find(x => re.test(x.name)); if (v) return (cachedVoice = v); }
+  cachedVoice = vs.find(v => v.localService) || vs[0] || speechSynthesis.getVoices().find(v => /^en/i.test(v.lang)) || null;
   return cachedVoice;
 }
-
 export function say(text, { rate = 1, onBoundary, onEnd } = {}) {
   if (!window.speechSynthesis) return;
   speechSynthesis.cancel();

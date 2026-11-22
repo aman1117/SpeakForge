@@ -1,50 +1,66 @@
-# 🎙️ SpeakForge
+# SpeakForge
 
-A personal speaking gym for **fluent, clear, confident English**, built around three problems: losing words mid-sentence and restarting, unclear articulation, and nervousness about speaking loudly.
+A rehearsal room for speaking English fluently, clearly and without fear. Built around three problems: losing a word mid-sentence and restarting, unclear articulation, and nerves about speaking up. It uses what we measured from Theo Browne's real speech as the model.
 
-➡️ **Read [PLAN.md](PLAN.md) first**: your 6-month plan, the science behind it, and what we learned from Theo and Mona (@babystepstothemic).
+Read [PLAN.md](PLAN.md) for the six-month plan and the research behind it.
 
-## Start
+## Mac (Apple Silicon): fully private, nothing leaves your Mac
 
-**On your phone or any PC (no install):** https://aman1117.github.io/SpeakForge/ (use Chrome or Edge, allow the microphone, and "Add to Home screen" to install it like an app).
-
-**On this PC:**
-```powershell
+```bash
+git clone https://github.com/aman1117/SpeakForge.git
 cd SpeakForge
-.\start.ps1                   # serves http://localhost:8765 and opens Edge
-.\start.ps1 -Reminder 20:00   # optional: open SpeakForge automatically every day at 20:00
-.\start.ps1 -RemoveReminder   # remove the daily reminder
+./setup_mac.sh        # one time: Python env, MLX Whisper, Praat, Ollama + an AI model (~10 GB of downloads)
+./start.sh            # every day: starts SpeakForge at http://localhost:8765 and opens it
 ```
-Progress is stored per device/browser. Use **Journal → Export / Import** to move it.
+
+On an M5 Max you can afford a bigger coach model: `SPEAKFORGE_LLM=gemma3:27b ./setup_mac.sh`.
+
+What runs where in private mode:
+
+| Part | Runs on | Notes |
+|---|---|---|
+| Speech recognition (live transcripts, restarts, fillers) | **Your Mac**: Whisper large-v3-turbo on the GPU via Apple MLX | Keeps the "um"s and false starts that browser recognition hides |
+| Deep analysis (pause placement, pitch, intonation, R strength) | **Your Mac**: Praat (parselmouth) | Same method used to measure Theo |
+| Accent measurement (R, the "a" split, open "ah") | **Your Mac**: Praat formants | Learn from Theo → Measure my accent |
+| AI coach and conversation partner | **Your Mac**: Ollama (default gemma3:12b) | No API keys, no cloud |
+| Voices that read prompts aloud | **Your Mac**: macOS system voices | Novelty voices are skipped automatically |
+| Recordings and progress | **Your browser** (IndexedDB/localStorage) | Export a backup from Recordings |
+| Fonts | Bundled with the app | No third-party requests |
+
+Use Safari, Chrome or Edge. The sidebar shows "Private mode" when the local engine is running. If Whisper is still loading after `start.sh`, the sidebar says so.
+
+## Other ways to run
+
+- **Anywhere, no install:** https://aman1117.github.io/SpeakForge/ (browser mode: the browser's own speech recognition, which sends audio to Apple/Google/Microsoft).
+- **Windows:** `pip install faster-whisper praat-parselmouth av numpy`, optionally install Ollama, then `.\start.ps1` (add `-Reminder 20:00` for a daily reminder).
 
 ## What's inside
 
-| Screen | Solves | Highlights |
+| Screen | Helps with | Highlights |
 |---|---|---|
-| **Today** | Habit | Adaptive daily mission sized to your daily minutes (10/20/35/60), Saturday benchmark, Sunday real-world task, focus of the day, weekly report, progress charts |
-| **Speaking Arena** | Word-freeze restarts, fluency, volume, camera nerves | Modes: 1-min topics, **No-Restart**, **Question chain** (5 spoken questions), 4/3/2, 10-word, PREP, Creator, **Benchmark**. Live **BRIDGE cards + beep** on freezes, **SPACE / tap to count restarts**, **live "speak up" volume coaching**, **camera mode** (records video), calm-down ritual. Results: wpm, freezes, recovered, restarts (self + detected), fillers, **clarity %**, volume-zone %, highlighted transcript, **"which words did you lose?" → your deck**, **automatic AI feedback** |
-| **Word Lab** | Word retrieval | Rapid naming (incl. **My lost words**), Taboo, category sprint, synonym sprint |
-| **Mouth Gym** | Articulation | Warm-up, pa-ta-ka speed test, scored tongue twisters with **model vs you** playback, minimal pairs **prioritised for your first language** (auto-plays the model when misheard), pen-in-mouth reading |
-| **Confidence Lab** | Volume, anxiety | Calibrated volume zone, projection ladder, box breathing, exposure ladder, **real-world moment log** (before → after nerves), nervousness trend |
-| **Shadowing** | Prosody, accent | Speak-along with word highlighting, echo-and-score, your own Theo/Mona clips with A-B loop + speed, shadow your **AI rewrite** |
-| **Phrase Bank** | Chunks + lost words | Spaced repetition, auto-checked by voice; lost words show a first-letter hint |
-| **Skills** | "Which skills do I need?" | Live 0-100 score on 11 skills from your data, lessons, targets, "train now" |
-| **AI Coach** | Feedback + real conversation | Profile (first language, accent goal, daily time). Connect **OpenAI**, **Azure OpenAI**, or **free local Ollama** for automatic feedback (corrections, the words you were looking for, native-style rewrite, chunks) and a **voice conversation partner** with BRIDGE cards |
-| **Plan / Journal** | Direction + proof | 26-week plan; recordings (audio + video), first vs latest benchmark, export without your AI key |
+| **Today** | Habit | Adaptive run sheet sized to your daily minutes, Saturday benchmark, Sunday real-world task, focus of the day, weekly report, progress charts |
+| **Speak** | Restarts, fluency, volume, camera nerves | A stage spotlight that follows your voice; cues with rescue phrases when you freeze; space to count restarts; "speak up" cues; film-me mode; 1-minute topics, No-Restart, Question chain, 4/3/2, PREP, reels, benchmark. Results: restarts, freezes, fillers, clarity, lost words, AI feedback, **You vs Theo** |
+| **Find words fast** | Word retrieval | Rapid naming (including your lost words), Taboo, category and synonym sprints |
+| **Clear speech** | Articulation | Warm-up, pa-ta-ka test, tongue twisters and sound pairs with model-vs-you playback, pen-in-mouth reading |
+| **Volume and nerves** | Projection, anxiety | Volume zone, projection ladder, box breathing, exposure ladder, real-world log |
+| **Shadowing** | Rhythm and melody | Speak-along, echo-and-score, your own clips with A-B loop |
+| **Phrases** | Ready-made chunks | Spaced repetition, checked by voice |
+| **Learn from Theo** | Accent and style | His measured profile, an accent lab for R / soft T / two kinds of "a" / open "ah" with real measurement, his seven hook patterns, his top phrases |
+| **Skills** | Knowing what to train | Live 0-100 score per skill with lessons |
+| **Coach and profile** | Setup | First language, accent goal, daily time, speech engine, AI provider (this computer, OpenAI, Azure OpenAI) |
 
-### Privacy
-Recordings and progress stay in your browser (IndexedDB/localStorage). Edge/Chrome speech recognition sends audio to the browser vendor's speech service to produce transcripts. If you connect an AI, only the transcript and metrics go to the provider you chose. Your API key stays in this browser and is never included in exports.
+## Command-line deep analysis
 
-## Deep analysis of a recording (optional, offline)
-```powershell
-pip install faster-whisper praat-parselmouth av numpy
-python tools\analyze_me.py path\to\recording.webm
+```bash
+python3 tools/analyze_me.py path/to/recording.webm      # writes recording.report.md, compared with Theo
 ```
-Compares you with Theo Browne's measured values on rate, pause placement, freezes, fillers, restarts, pitch range/variation, falling intonation and American-R strength. Validated on Theo's own audio.
 
 ## Tests
-```powershell
-node --test tests/             # unit tests: metrics, voice tracking, skill scores, focus, weekly report, SRS, AI JSON parsing
-python tests\smoke.py          # E2E: headless Edge + fake mic & camera + mock AI server, every screen and feature
-python tests\e2e_speech.py     # E2E: fake speech recogniser → restart/filler detection, clarity, AI feedback, lost words, conversation partner
+
+```bash
+node --test tests/              # unit tests
+python3 tests/smoke.py          # every screen with a fake mic, camera and AI server
+python3 tests/e2e_speech.py     # transcript paths with a fake recogniser
+python3 tests/e2e_local.py      # private mode: real server.py + Whisper + Ollama + real audio (Windows speech for input)
+python3 tests/webkit_check.py   # Safari engine: every screen, fonts, storage
 ```

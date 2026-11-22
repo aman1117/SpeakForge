@@ -20,6 +20,13 @@ class Quiet(http.server.SimpleHTTPRequestHandler):
     def log_message(self, *a):
         pass
 
+    def do_GET(self):
+        if self.path.startswith('/api/status'):  # behave like "no local engine" without a console 404
+            self.send_response(204)
+            self.end_headers()
+            return
+        super().do_GET()
+
 
 class MockAI(http.server.BaseHTTPRequestHandler):
     def log_message(self, *a):
@@ -54,6 +61,10 @@ class MockAI(http.server.BaseHTTPRequestHandler):
         self.wfile.write(out)
 
 
+def opts(page):
+    page.evaluate("document.querySelectorAll('details').forEach(d => d.open = true)")
+
+
 def main():
     sys.stdout.reconfigure(encoding='utf-8')
     httpd = http.server.ThreadingHTTPServer(('127.0.0.1', PORT), Quiet)
@@ -70,11 +81,11 @@ def main():
         page.on('console', lambda m: m.type == 'error' and errors.append(f'console: {m.text}'))
         base = f'http://127.0.0.1:{PORT}/'
         page.goto(base)
-        page.get_by_text("Today's mission").first.wait_for()
+        page.get_by_text("run sheet").first.wait_for()
 
         routes = {
-            'home': "Today's mission", 'speak': 'Speaking Arena', 'words': 'Word Lab', 'mouth': 'Mouth Gym', 'voice': 'Confidence Lab',
-            'shadow': 'Shadowing Studio', 'phrases': 'Phrase Bank', 'skills': 'Skill map', 'coach': 'AI Coach', 'plan': 'Your 6-month plan', 'journal': 'Journal',
+            'home': 'run sheet', 'speak': 'Step onto the stage', 'drills': 'Drills', 'theo': 'Learn from Theo', 'words': 'Find words fast', 'mouth': 'Clear speech', 'voice': 'Volume and nerves',
+            'shadow': 'Speak along', 'phrases': 'phrases due', 'skills': 'Skill map', 'coach': 'Coach and profile', 'plan': 'Your six-month plan', 'journal': 'Recordings',
         }
         for r, text in routes.items():
             page.goto(base + '#/' + r)
@@ -93,6 +104,7 @@ def main():
         print('calibration:', page.inner_text('#bv'))
 
         page.goto(base + '#/speak?mode=oneMin')
+        opts(page)
         page.check('#cam')
         page.uncheck('#rit')
         page.click('#go')
@@ -117,6 +129,7 @@ def main():
         print('lost words deck:', opt)
 
         page.goto(base + '#/speak?mode=benchmark')
+        opts(page)
         page.uncheck('#cam')
         page.check('#rit')
         page.click('#go')
@@ -129,6 +142,7 @@ def main():
         print('ritual + benchmark ok')
 
         page.goto(base + '#/speak?mode=questions')
+        opts(page)
         page.uncheck('#rit')
         page.click('#go')
         for _ in range(5):
@@ -168,6 +182,17 @@ def main():
         assert fb['fb']['lost_words'][0]['word'] == 'deadline' and fb['fb']['corrections'] and fb['pr']['reply'].startswith('Nice'), fb
         print('AI coach ok: connection + feedback parse + partner parse;', len(AI_CALLS), 'mock calls')
 
+        page.goto(base + '#/theo')
+        page.click('#addph')
+        page.click('#accent .card [data-act=rec]')
+        page.wait_for_timeout(1200)
+        page.click('#accent .card [data-act=rec]')
+        page.wait_for_selector('#accent .card [data-act=me]:not(.hidden)', timeout=5000)
+        page.click('a.btn[href*=hook]')
+        assert page.input_value('#custom').startswith('This is a video'), 'hook not prefilled'
+        theo_n = page.evaluate("import('/js/theo.js').then(t => { const srs = JSON.parse(localStorage.getItem('speakforge.v1')).srs; return t.THEO_PHRASES.filter(p => srs[p.phrase]).length; })")
+        assert theo_n == 18, theo_n
+        print('theo track ok: phrases', theo_n, '+ accent record/playback + hook template')
         page.goto(base + '#/skills')
         page.get_by_text('Focus of the day').first.wait_for()
         page.goto(base + '#/home')

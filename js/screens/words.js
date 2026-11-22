@@ -10,11 +10,11 @@ let tab = 'naming';
 export function render(main, params = {}) {
   if (params.t) tab = params.t;
   main.innerHTML = `
-    <h1>🧠 Word Lab</h1>
+    <h1>Find words fast</h1>
     <p class="sub">Trains <b>lexical retrieval</b> (finding words fast) and <b>circumlocution</b> (talking around a word you can't find). These are the two skills behind “I forget a word and restart the sentence”.</p>
     <div class="tabs">
-      <button data-t="naming">⚡ Rapid naming</button><button data-t="taboo">🚫 Taboo (describe it)</button>
-      <button data-t="category">📚 Category sprint</button><button data-t="synonym">🔁 Synonym sprint</button>
+      <button data-t="naming">Rapid naming</button><button data-t="taboo">Taboo (describe it)</button>
+      <button data-t="category">Category sprint</button><button data-t="synonym">Synonym sprint</button>
     </div>
     <div id="pane"></div>`;
   main.querySelectorAll('.tabs button').forEach(b => {
@@ -55,9 +55,9 @@ function naming(pane) {
   pane.innerHTML = `<div class="grid g2">
     <div class="card hl"><h2>Rapid naming</h2>
       <p>A picture or definition appears. <b>Say the word out loud as fast as you can.</b> SpeakForge measures your retrieval speed. 10 items per round.</p>
-      <div class="row"><select id="ntype"><option value="emoji">Pictures (everyday words)</option><option value="defs">Definitions (richer vocabulary)</option><option value="lost" ${lost.length ? '' : 'disabled'}>🧠 My lost words (${lost.length})</option></select>
-      <button id="nstart">Start round ▶</button></div>
-      <p class="muted">“My lost words” = words you couldn't find while speaking (added from Speaking Arena results or AI feedback). Retrieving them here makes them instant next time.</p></div>
+      <div class="row"><select id="ntype"><option value="emoji">Pictures (everyday words)</option><option value="defs">Definitions (richer vocabulary)</option><option value="lost" ${lost.length ? '' : 'disabled'}>My lost words (${lost.length})</option></select>
+      <button id="nstart">Start round</button></div>
+      <p class="muted">“My lost words” = words you couldn't find while speaking (added from speech results or AI feedback). Retrieving them here makes them instant next time.</p></div>
     <div class="card"><h2>Your history</h2><p class="muted">${hist}</p><p class="muted">Goal: average under 1500 ms with 90%+ accuracy. Speech recognition adds ~0.5 s, so compare yourself to yourself.</p></div></div>
     <div id="play"></div>`;
   $('#nstart').onclick = async () => {
@@ -86,7 +86,7 @@ function naming(pane) {
       logActivity('naming', 15);
     }
     $('#play').innerHTML = `<div class="card"><h2>Round done</h2><div class="kpi"><div><b>${avgMs} ms</b><span class="muted">avg retrieval time</span></div><div><b>${acc}%</b><span class="muted">found</span></div></div>
-      <p>Missed: ${done.filter(r => !r.ok).map(r => `<b>${esc(r.target)}</b>`).join(', ') || 'none 🎉'}</p>
+      <p>Missed: ${done.filter(r => !r.ok).map(r => `<b>${esc(r.target)}</b>`).join(', ') || 'none'}</p>
       <p class="muted">Missed words: say each one 3× in a sentence right now. Retrieval practice is how words become fast.</p></div>`;
   };
 }
@@ -98,7 +98,7 @@ function namingItem(pane, listener, cue, target, type, i, n) {
     pane.innerHTML = `<div class="card" style="text-align:center"><span class="pill">${i + 1}/${n}</span>
       ${type === 'emoji' ? `<div class="emoji">${cue}</div>` : `<div class="prompt">${esc(cue)}</div>`}
       <div class="muted" id="heard">listening…</div><br>
-      <div class="row" style="justify-content:center"><button class="ghost small" id="self">I said it ✓</button><button class="ghost small" id="skip">Skip</button><button class="ghost small" id="quit">End round</button></div></div>`;
+      <div class="row" style="justify-content:center"><button class="ghost small" id="self">I said it</button><button class="ghost small" id="skip">Skip</button><button class="ghost small" id="quit">End round</button></div></div>`;
     let done = false;
     const finish = (r) => { if (done) return; done = true; clearInterval(iv); resolve(r); };
     const iv = setInterval(async () => {
@@ -128,7 +128,7 @@ function taboo(pane) {
   pane.innerHTML = `<div class="card hl"><h2>Taboo: describe without the obvious words</h2>
     <p>Describe the word for <b>45 seconds</b> so a friend could guess it, but you can't say the word or the banned words. This is <i>exactly</i> the skill you need when you forget a word mid-sentence.</p>
     <p class="muted">Useful frames: “It’s a kind of…”, “You use it to…”, “It looks like…”, “You find it in…”, “It’s the opposite of…”</p>
-    <button id="tstart">Draw a card ▶</button></div><div id="play"></div>`;
+    <button id="tstart">Draw a card</button></div><div id="play"></div>`;
   $('#tstart').onclick = async () => {
     if (needSpeech($('#play')) || !(await ensureMic())) return;
     const card = pick(TABOO_CARDS);
@@ -173,7 +173,7 @@ function category(pane) {
   const best = Math.max(0, ...S.category.map(c => c.count));
   pane.innerHTML = `<div class="card hl"><h2>Category sprint (60 s)</h2>
     <p>Name as many things in the category as you can. Builds fast access to your vocabulary “shelves”. Best so far: <b>${best}</b></p>
-    <button id="cstart">Start ▶</button></div><div id="play"></div>`;
+    <button id="cstart">Start</button></div><div id="play"></div>`;
   $('#cstart').onclick = async () => {
     if (needSpeech($('#play')) || !(await ensureMic())) return;
     const cat = pick(CATEGORIES);
@@ -203,7 +203,7 @@ function category(pane) {
 function synonym(pane) {
   pane.innerHTML = `<div class="card hl"><h2>Synonym sprint</h2>
     <p>5 words × 12 seconds. Say as many alternatives as you can (“good → great, nice, solid, excellent…”). When a word escapes you mid-sentence, you'll have backups ready.</p>
-    <button id="sstart">Start ▶</button></div><div id="play"></div>`;
+    <button id="sstart">Start</button></div><div id="play"></div>`;
   $('#sstart').onclick = async () => {
     if (needSpeech($('#play')) || !(await ensureMic())) return;
     const words = shuffle(SYNONYM_SPRINT).slice(0, 5);
@@ -223,6 +223,6 @@ function synonym(pane) {
     await listener.stop();
     logActivity('synonym', 10);
     $('#play').innerHTML = `<br><div class="card"><h2>Your alternatives</h2><table>${out.map(([w, s]) => `<tr><td><b>${esc(w)}</b></td><td>${esc(s.join(', ')) || '<span class="bad">none</span>'}</td></tr>`).join('')}</table>
-      <p class="muted">Weak ones? Ask an AI for 5 spoken-English synonyms and add them to your Phrase Bank habit.</p></div>`;
+      <p class="muted">Weak ones? Ask an AI for 5 spoken-English synonyms and add them to your phrases.</p></div>`;
   };
 }

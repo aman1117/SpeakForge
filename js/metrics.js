@@ -284,7 +284,7 @@ export function skillScores(S) {
 export const SKILL_LINKS = {
   'Repair fluency': ['#/speak?mode=noRestart', 'No-Restart challenge'],
   'Lexical retrieval': ['#/words?t=naming', 'Rapid naming'],
-  'Formulaic chunks': ['#/phrases', 'Phrase Bank review'],
+  'Formulaic chunks': ['#/phrases', 'Phrase review'],
   'Pace': ['#/speak?mode=quick432', 'Quick 4/3/2'],
   'Pausing (no fillers)': ['#/speak?mode=tenWord', '10-word sentences'],
   'Articulation': ['#/mouth?t=pen', 'Pen-in-mouth reading'],

@@ -3,6 +3,10 @@ import { loop, calibrate, Recorder, Listener, speechSupported, saveRecording, sa
 import { VoiceTracker, speechThreshold, countWords, wordsPerMinute, pauseStats, findRepetitions, countFillers, coachNotes, sentenceLengths, tokenize, FILLER_WORDS, avgConfidence } from '../metrics.js';
 import { TOPICS, RESCUE_PHRASES, BRIDGE_TIPS, QUESTIONS, BENCHMARK_TOPIC, AFFIRMATIONS, READING_PASSAGES } from '../content.js';
 import { aiReady, chat, feedbackMessages, parseFeedback } from '../ai.js';
+import { Spotlight } from '../stage.js';
+import { LOCAL, postAudio } from '../local.js';
+import { listenMode } from '../audio.js';
+import { compareTable } from './theo.js';
 
 const R_PASSAGE = READING_PASSAGES[READING_PASSAGES.length - 1];
 
@@ -23,40 +27,45 @@ let topic = null;
 export function render(main, params = {}) {
   const st = S.settings;
   const modeOpts = Object.entries(MODES).map(([k, m]) => `<option value="${k}" ${params.mode === k ? 'selected' : ''}>${m.name}</option>`).join('');
+  const hook = params.hook || '';
   main.innerHTML = `
-    <h1>🎤 Speaking Arena</h1>
-    <p class="sub">Impromptu speaking with live coaching. A long silence triggers a <b>BRIDGE</b> card (+ soft beep) so you continue instead of restarting. Press <b>SPACE</b> whenever you catch yourself restarting: awareness is half the cure.</p>
-    <div class="grid g2">
-      <div class="card">
-        <h2>Set up</h2>
-        <label class="muted">Mode</label><br><select id="mode" style="width:100%">${modeOpts}</select><br><br>
-        <div class="row"><label class="muted">Topics</label>
-        <select id="diff"><option value="easy">Easy (everyday)</option><option value="medium" selected>Medium (opinions)</option><option value="hard">Hard (explain/argue)</option><option value="creator" ${params.mode === 'creator' ? 'selected' : ''}>Creator / reels</option></select></div><br>
-        <div class="row"><label class="muted">Bridge after</label>
-          <select id="bms">${[1200, 1800, 2500, 3500].map(v => `<option value="${v}" ${st.bridgeMs === v ? 'selected' : ''}>${v / 1000}s silence</option>`).join('')}</select>
-          <label><input type="checkbox" id="cue" ${st.cue ? 'checked' : ''}> beep</label>
-          <label><input type="checkbox" id="cam" ${st.camera ? 'checked' : ''}> 📷 camera</label>
-          <label><input type="checkbox" id="rit" ${st.ritual ? 'checked' : ''}> calm-down ritual</label></div>
-        <p class="muted">${S.volume.baseline == null ? '⚠️ Calibrate your voice in <a href="#/voice?t=zone">Confidence Lab</a> to get live “speak up” coaching.' : 'Volume coaching on: stay in the green zone.'}</p>
-        <label class="muted">Nervousness right now: <b id="anxv">5</b>/10</label><br>
-        <input type="range" id="anx" min="0" max="10" value="5" style="width:100%">
-      </div>
+    <h1>Step onto the stage</h1>
+    <p class="sub">Talk without stopping. If a word disappears, a cue appears with a phrase that keeps your sentence alive. Press space whenever you catch yourself restarting.</p>
+    <div class="grid g2" style="align-items:start">
       <div class="card hl">
         <h2>Your topic</h2>
-        <div class="prompt" id="topic"></div>
-        <div class="row"><button class="ghost" id="spin">🎲 Spin again</button><input id="custom" placeholder="…or type your own topic" style="flex:1"></div>
-        <br><button id="go" style="width:100%;padding:14px;font-size:17px">Start speaking ▶</button>
-        <p class="muted">Think for 0 seconds. Start with “So, …” and say the first thing that comes to mind.</p>
+        <div class="prompt" id="topic" style="text-align:left;margin:0;padding:6px 0 14px"></div>
+        ${hook ? `<p class="warnc">Open with Theo’s hook pattern: “${esc(hook)}”</p>` : ''}
+        <div class="row"><button class="ghost" id="spin">Another topic</button><input id="custom" placeholder="Or type your own topic" style="flex:1;min-width:180px" value=""></div>
+        <div class="row" style="margin-top:18px"><button id="go" style="padding:15px 24px;font-size:17px">Start speaking</button><span class="muted">Start with “So,” and say the first thing that comes to mind.</span></div>
+      </div>
+      <div class="card">
+        <h2>How you’ll practise</h2>
+        <select id="mode" style="width:100%">${modeOpts}</select>
+        <div class="row" style="margin-top:12px"><label>Topics</label>
+          <select id="diff"><option value="easy">Everyday</option><option value="medium" selected>Opinions</option><option value="hard">Explain or argue</option><option value="creator" ${params.mode === 'creator' ? 'selected' : ''}>Reels</option></select></div>
+        <details style="margin-top:14px"><summary class="muted">Coaching options</summary>
+          <div class="row" style="margin-top:10px"><label>Cue after</label>
+            <select id="bms">${[1200, 1800, 2500, 3500].map(v => `<option value="${v}" ${st.bridgeMs === v ? 'selected' : ''}>${v / 1000} s of silence</option>`).join('')}</select></div>
+          <div class="row" style="margin-top:10px">
+            <label><input type="checkbox" id="cue" ${st.cue ? 'checked' : ''}> Soft sound with cues</label>
+            <label><input type="checkbox" id="cam" ${st.camera ? 'checked' : ''}> Film me</label>
+            <label><input type="checkbox" id="rit" ${st.ritual ? 'checked' : ''}> Breathe first</label></div>
+        </details>
+        <p class="muted" style="margin-top:14px">${S.volume.baseline == null ? 'Set your normal volume in <a href="#/voice?t=zone">Volume and nerves</a> to get “speak up” cues while you talk.' : 'Volume cues are on.'}</p>
+        <label>How nervous are you right now? <b id="anxv">5</b> of 10</label><br>
+        <input type="range" id="anx" min="0" max="10" value="5" style="width:100%">
       </div>
     </div>`;
   const spin = () => {
     const m = MODES[$('#mode').value];
     if (m.benchmark) topic = BENCHMARK_TOPIC;
-    else if (m.questions) topic = '5 surprise questions, read aloud one by one';
+    else if (m.questions) topic = 'Five surprise questions, read aloud one at a time';
     else topic = pick(TOPICS[$('#diff').value]);
     $('#topic').textContent = topic;
   };
   spin();
+  if (hook) { $('#custom').value = hook; $('#topic').textContent = hook; }
   $('#mode').onchange = spin;
   $('#spin').onclick = spin;
   $('#diff').onchange = spin;
@@ -106,7 +115,7 @@ async function run(main, modeKey, topicText, anxBefore) {
 }
 
 async function askQuestion(main, q, r, n) {
-  main.innerHTML = `<div class="card" style="text-align:center"><span class="pill">Question ${r + 1}/${n}</span><div class="prompt">🔊 ${esc(q)}</div><p class="muted">Listen… then answer immediately when the timer starts.</p></div>`;
+  main.innerHTML = `<div class="card" style="text-align:center"><span class="pill">Question ${r + 1}/${n}</span><div class="prompt">${esc(q)}</div><p class="muted">Listen… then answer immediately when the timer starts.</p></div>`;
   await new Promise(res => { say(q, { rate: 0.95, onEnd: res }); setTimeout(res, 9000); });
   await sleep(300);
 }
@@ -129,25 +138,27 @@ function round(main, mode, topicText, secs, threshold, r, total, cam) {
     const zone = base != null ? [base + 4, base + 14] : null;
     const stagesHtml = mode.stages ? `<div class="stage" id="stg">${mode.stages.map(s => `<span>${s[0]}</span>`).join('')}</div><br>` : '';
     main.innerHTML = `
-      <div class="card">
-        <div class="row"><span class="pill">${total > 1 ? `${mode.questions ? 'Question' : 'Round'} ${r + 1}/${total}` : 'Live'}</span><span class="spacer"></span><button class="ghost small" id="rst">↺ I restarted (SPACE)</button><button class="red small" id="stop">Stop</button></div>
-        <div class="grid ${cam ? 'g2' : ''}" style="align-items:start">
-          ${cam ? '<video id="camv" autoplay muted playsinline style="width:100%;max-height:420px;border-radius:12px;transform:scaleX(-1);background:#000"></video>' : ''}
+      <div class="card onair">
+        <canvas class="spotlight" id="spot" aria-hidden="true"></canvas>
+        <div class="row"><span class="pill">${total > 1 ? `${mode.questions ? 'Question' : 'Round'} ${r + 1} of ${total}` : 'On stage'}</span><span class="spacer"></span><button class="ghost small" id="rst" title="Press when you catch yourself restarting a sentence">I restarted (space)</button><button class="red small" id="stop">Finish</button></div>
+        <div class="grid ${cam ? 'g2' : ''}" style="align-items:center;margin-top:18px">
+          ${cam ? '<video id="camv" autoplay muted playsinline style="width:100%;max-height:440px;border-radius:20px;transform:scaleX(-1);background:#000;object-fit:cover"></video>' : ''}
           <div>
             <div class="prompt">${esc(topicText)}</div>
-            ${mode.rule ? `<p style="text-align:center" class="warnc"><b>${esc(mode.rule)}</b></p>` : ''}
+            ${mode.rule ? `<p style="text-align:center;max-width:52ch;margin:0 auto 10px" class="warnc">${esc(mode.rule)}</p>` : ''}
             ${stagesHtml}
             <div class="big" id="timer">${fmtTime(secs)}</div>
-            ${meterHtml('lvl', zone)}
-            <p class="muted" id="status">Start talking whenever you're ready.</p>
-            <div id="nudge" style="min-height:28px;text-align:center"></div>
-            <div id="bridge" style="min-height:96px"></div>
+            <div style="max-width:420px;margin:0 auto">${meterHtml('lvl', zone)}</div>
+            <p class="muted" id="status" style="text-align:center;margin-top:12px">${listenMode() === 'local' && !LOCAL.ready ? 'The speech engine is still loading on your computer; your words will appear in a moment.' : 'The light follows your voice. Begin whenever you’re ready.'}</p>
+            <div id="nudge" style="min-height:26px;text-align:center"></div>
+            <div id="bridge" style="min-height:104px;max-width:560px;margin:0 auto"></div>
             <div id="rpass"></div>
           </div>
         </div>
-        <div class="row muted"><span>Freezes: <b id="fz">0</b></span><span>Recovered: <b id="rc">0</b></span><span>Restarts (you): <b id="sr">0</b></span><span>Words: <b id="wc">0</b></span></div>
-        <div class="transcript" id="tr"><span class="muted">Live transcript appears here…</span></div>
+        <div class="row muted" style="justify-content:center;gap:22px;margin:8px 0 12px"><span>Freezes <b id="fz">0</b></span><span>Recovered <b id="rc">0</b></span><span>Restarts <b id="sr">0</b></span><span>Words <b id="wc">0</b></span></div>
+        <div class="transcript" id="tr"><span class="muted">Your words appear here as you speak.</span></div>
       </div>`;
+    const spot = new Spotlight($('#spot'));
     if (cam) $('#camv').srcObject = cam.stream;
     const tracker = new VoiceTracker({ thresholdDb: threshold });
     const listener = new Listener({ onText: t => { $('#tr').textContent = t; $('#wc').textContent = countWords(t); } });
@@ -187,7 +198,7 @@ function round(main, mode, topicText, secs, threshold, r, total, cam) {
         const a = recent.reduce((s, x) => s + x[1], 0) / recent.length;
         if (a < base + 2) {
           lastNudge = t;
-          $('#nudge').innerHTML = '<b class="warnc">🔊 Speak up! Talk to the back of the room</b>';
+          $('#nudge').innerHTML = '<b class="warnc">Speak up! Talk to the back of the room</b>';
           if (st.cue) cue(440, 120);
           setTimeout(() => { $('#nudge').innerHTML = ''; }, 3000);
         }
@@ -195,7 +206,7 @@ function round(main, mode, topicText, secs, threshold, r, total, cam) {
       if (silence > st.bridgeMs && !inFreeze) {
         inFreeze = true; freezes++; freezeStart = t;
         const p = pick(RESCUE_PHRASES);
-        $('#bridge').innerHTML = `<div class="bridge">🌉 BRIDGE IT: <b>“${esc(p.phrase)}”</b><span class="muted">${esc(p.use)} · ${esc(pick(BRIDGE_TIPS))}</span></div>`;
+        $('#bridge').innerHTML = `<div class="bridge"><span class="muted">Lost the word? Keep the sentence going:</span><b>“${esc(p.phrase)}”</b><span class="muted">${esc(p.use)}. ${esc(pick(BRIDGE_TIPS))}</span></div>`;
         $('#fz').textContent = freezes;
         if (st.cue) cue(660, 140);
       }
@@ -205,6 +216,7 @@ function round(main, mode, topicText, secs, threshold, r, total, cam) {
         $('#bridge').innerHTML = '';
       }
       if (left <= 0) finish();
+      spot.feed(db, threshold, inFreeze ? 'freeze' : t - lastNudge < 3000 ? 'quiet' : db >= threshold ? 'speaking' : 'idle');
     });
     $('#stop').onclick = () => finish();
     async function finish() {
@@ -329,15 +341,16 @@ async function showResults(main, modeKey, topicText, results, anxBefore, topics)
       <div class="card"><h2>Coach notes</h2><ul>${coachNotes({ ...agg, repetitions: restartVal(agg) }).map(n => `<li>${esc(n)}</li>`).join('')}</ul>
         ${media}<p class="muted">Listen back once. Where did you freeze, and what could you have said?</p></div>
     </div><br>
-    <div class="card hl"><h2>🧠 Which words did you lose?</h2>
-      <p>Type the words you were searching for (comma-separated). They go into <b>My lost words</b>: Phrase Bank + Rapid naming drill them until they're instant.</p>
+    <div class="card hl"><h2>Which words did you lose?</h2>
+      <p>Type the words you were searching for (comma-separated). They go into <b>My lost words</b>: Phrases and Rapid naming drill them until they're instant.</p>
       <div class="row"><input id="lost" placeholder="e.g. reluctant, deadline, procrastinate" style="flex:1"><button id="addlost">Add to my deck</button></div></div><br>
-    <div class="card" id="aibox"><h2>🤖 AI coach</h2><div id="aiout"></div></div><br>
+    <div class="card" id="aibox"><h2>AI coach</h2><div id="aiout"></div></div><br>
+    <div class="card" id="theobox"><h2>You vs Theo</h2><div id="theoout"></div></div><br>
     <div class="card"><h2>Transcript</h2><p class="muted"><span class="rep">red</span> = restart/repeat · <span class="fill">orange</span> = filler · (speech recognition hides some restarts and “um”s; SPACE counts the ones you notice)</p>
       <div class="transcript" style="white-space:pre-wrap">${highlight(fullText) || '<span class="muted">No speech recognised. Use Edge/Chrome and check the mic.</span>'}</div></div><br>
     <div class="card"><h2>How nervous now?</h2><input type="range" id="anx2" min="0" max="10" value="${Math.max(0, anxBefore - 1)}" style="width:100%"><b id="anx2v">${Math.max(0, anxBefore - 1)}</b>/10 (before: ${anxBefore})
         <br><br><button class="ghost" id="saveanx">Save rating</button></div><br>
-    <div class="row"><button id="again">🔁 Same again</button><button class="ghost" id="new">🎲 New topic</button></div>`;
+    <div class="row"><button id="again">Same again</button><button class="ghost" id="new">New topic</button></div>`;
   $('#addlost').onclick = () => {
     const words = $('#lost').value.split(',').map(w => w.trim()).filter(Boolean);
     words.forEach(w => addToDeck(w, `You lost this word while talking about “${topicText}”. Use it in a sentence.`));
@@ -349,31 +362,52 @@ async function showResults(main, modeKey, topicText, results, anxBefore, topics)
   $('#again').onclick = () => run(main, modeKey, topicText, anxBefore);
   $('#new').onclick = () => render(main, { mode: modeKey });
   renderAi(topicText, fullText, agg);
+  renderTheo(agg, lastR.blob);
+}
+
+async function renderTheo(m, blob) {
+  const mins = Math.max((m.speakSec || 0) / 60, 0.25);
+  const you = { wpm: m.wpm, freezesPerMin: +(m.freezes / mins).toFixed(1), restartsPerMin: +(Math.max(m.repetitions, m.selfRestarts || 0) / mins).toFixed(1), fillersPerMin: +(m.fillers / mins).toFixed(1) };
+  const box = $('#theoout');
+  const canDeep = LOCAL.ok && blob && blob.size && m.speakSec >= 10;
+  box.innerHTML = compareTable(you) + (canDeep ? '<p class="muted" id="deepstat">Analysing pauses, pitch and R on your computer…</p>' : '<p class="muted">Pause placement, pitch and R strength are measured when SpeakForge runs locally (start.sh) and you speak for at least 10 seconds.</p>');
+  if (!canDeep) return;
+  try {
+    const d = await postAudio('analyze', blob);
+    S.deep = S.deep || [];
+    const { transcript, ...metrics } = d;
+    S.deep.push({ ts: Date.now(), ...metrics });
+    save();
+    Object.assign(you, { pctPausesAtSentenceEnd: d.pct_pauses_sentence_end, pctPausesMidPhrase: d.pct_pauses_mid_phrase, f0RangeSt: d.f0_range_st, pctStatementsFalling: d.pct_statements_falling, nurseF3Ratio: d.nurse_f3_ratio });
+    if (d.fillers_per_min != null) you.fillersPerMin = d.fillers_per_min;
+    if (d.restarts_per_min != null) you.restartsPerMin = Math.max(you.restartsPerMin, d.restarts_per_min);
+    box.innerHTML = compareTable(you) + `<p class="muted">Measured on your computer by Whisper and Praat (${esc(d.engine || 'local')}). Whisper keeps the “um”s and restarts that browser recognition hides.</p>`;
+  } catch (e) { $('#deepstat').innerHTML = `<span class="bad">Local analysis failed: ${esc(e.message)}</span>`; }
 }
 
 async function renderAi(topicText, text, m) {
   const box = $('#aiout');
-  const copyBtn = '<button class="ghost small" id="copy">📋 Copy coach prompt for ChatGPT/Copilot</button>';
+  const copyBtn = '<button class="ghost small" id="copy">Copy coach prompt for ChatGPT/Copilot</button>';
   const bindCopy = () => { $('#copy').onclick = async () => { try { await navigator.clipboard.writeText(aiPrompt(topicText, text, m)); toast('Prompt copied'); } catch { toast('Clipboard blocked'); } }; };
   if (!aiReady(S.ai)) {
-    box.innerHTML = `<p class="muted">Connect an AI (OpenAI, Azure OpenAI or free local Ollama) in <a href="#/coach">AI Coach</a> for automatic feedback: corrections, the words you were looking for, and a native-style rewrite.</p>${copyBtn}`;
+    box.innerHTML = `<p class="muted">Connect an AI (OpenAI, Azure OpenAI or free local Ollama) in <a href="#/coach">Coach and profile</a> for automatic feedback: corrections, the words you were looking for, and a native-style rewrite.</p>${copyBtn}`;
     bindCopy();
     return;
   }
   if (!text || countWords(text) < 8) { box.innerHTML = `<p class="muted">Not enough recognised speech for AI feedback.</p>${copyBtn}`; bindCopy(); return; }
   const go = async () => {
-    box.innerHTML = '<p class="muted">🤖 Thinking…</p>';
+    box.innerHTML = '<p class="muted">Thinking…</p>';
     try {
       const fb = parseFeedback(await chat(S.ai, feedbackMessages(topicText, text, m, S.settings)));
       box.innerHTML = `
-        ${fb.strength ? `<p class="ok">✔ ${esc(fb.strength)}</p>` : ''}
+        ${fb.strength ? `<p class="ok">${esc(fb.strength)}</p>` : ''}
         ${fb.corrections.length ? `<h3>Corrections</h3><table>${fb.corrections.map(c => `<tr><td class="bad">${esc(c.original)}</td><td class="ok">${esc(c.better)}</td><td class="muted">${esc(c.why || '')}</td></tr>`).join('')}</table><br>` : ''}
         ${fb.lost_words.length ? `<h3>Words you were probably looking for</h3><p id="lw">${fb.lost_words.map(w => `<span class="pill" title="${esc(w.example || '')}"><b>${esc(w.word)}</b> · ${esc(w.meaning || '')}</span>`).join(' ')}</p><button class="small" id="addai">Add these to My lost words</button><br><br>` : ''}
-        ${fb.rewrite ? `<h3>Native-style version</h3><p class="passage" id="rw" style="font-size:16px">${esc(fb.rewrite)}</p><div class="row"><button class="ghost small" id="hear">🔊 Hear it</button><button class="ghost small" id="shadowit">🗣️ Shadow this</button></div><br>` : ''}
-        ${fb.phrases.length ? `<h3>Chunks to learn</h3><p>${fb.phrases.map(p => `<span class="pill">${esc(p)}</span>`).join(' ')}</p><button class="ghost small" id="addph">Add chunks to Phrase Bank</button>` : ''}
+        ${fb.rewrite ? `<h3>Native-style version</h3><p class="passage" id="rw" style="font-size:16px">${esc(fb.rewrite)}</p><div class="row"><button class="ghost small" id="hear">Hear it</button><button class="ghost small" id="shadowit">Shadow this</button></div><br>` : ''}
+        ${fb.phrases.length ? `<h3>Chunks to learn</h3><p>${fb.phrases.map(p => `<span class="pill">${esc(p)}</span>`).join(' ')}</p><button class="ghost small" id="addph">Add chunks to my phrases</button>` : ''}
         ${fb.focus ? `<p class="warnc"><b>Next time:</b> ${esc(fb.focus)}</p>` : ''}`;
       $('#addai').onclick = () => { fb.lost_words.forEach(w => addToDeck(w.word, `${w.meaning || ''}${w.example ? ` e.g. “${w.example}”` : ''}`)); toast('Added to My lost words'); };
-      $('#addph').onclick = () => { fb.phrases.forEach(p => addToDeck(p, 'Chunk from your AI rewrite. Use it in a sentence.', 'Mine')); toast('Added to Phrase Bank'); };
+      $('#addph').onclick = () => { fb.phrases.forEach(p => addToDeck(p, 'Chunk from your AI rewrite. Use it in a sentence.', 'Mine')); toast('Added to your phrases'); };
       $('#hear').onclick = () => say(fb.rewrite, { rate: 0.95 });
       $('#shadowit').onclick = () => { sessionStorage.setItem('sf.shadow', fb.rewrite); location.hash = '#/shadow?t=along'; };
     } catch (e) {

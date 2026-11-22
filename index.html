@@ -2,34 +2,54 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>SpeakForge: train fluent, clear, confident English</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>SpeakForge</title>
+  <meta name="description" content="A rehearsal room for speaking English fluently, clearly and without fear." />
+  <link rel="stylesheet" href="css/fonts.css" />
   <link rel="stylesheet" href="css/style.css" />
   <link rel="icon" href="icon.svg" />
   <link rel="manifest" href="manifest.webmanifest" />
-  <meta name="theme-color" content="#7c5cff" />
+  <meta name="theme-color" content="#241229" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 </head>
 <body>
-  <header class="top">
-    <a href="#/home" class="brand">🎙️ Speak<span>Forge</span></a>
-    <nav id="nav">
-      <a href="#/home">Today</a>
-      <a href="#/speak">Speaking Arena</a>
-      <a href="#/words">Word Lab</a>
-      <a href="#/mouth">Mouth Gym</a>
-      <a href="#/voice">Confidence Lab</a>
-      <a href="#/shadow">Shadowing</a>
-      <a href="#/phrases">Phrase Bank</a>
-      <a href="#/skills">Skills</a>
-      <a href="#/coach">AI Coach</a>
-      <a href="#/plan">6-Month Plan</a>
-      <a href="#/journal">Journal</a>
-    </nav>
-    <div id="xpbar" class="xp"></div>
-  </header>
-  <div id="warn" class="warn hidden"></div>
-  <main id="app"></main>
-  <div id="toast" class="toast"></div>
+  <div class="shell">
+    <aside class="rail" aria-label="Main">
+      <a href="#/home" class="brand"><span class="mark" aria-hidden="true"></span>SpeakForge</a>
+      <nav id="nav">
+        <a href="#/home">Today</a>
+        <a href="#/speak" class="cta-link">Speak</a>
+        <p class="group">Drills</p>
+        <a href="#/words">Find words fast</a>
+        <a href="#/mouth">Clear speech</a>
+        <a href="#/voice">Volume and nerves</a>
+        <a href="#/shadow">Shadowing</a>
+        <a href="#/phrases">Phrases</a>
+        <a href="#/theo">Learn from Theo</a>
+        <p class="group">Progress</p>
+        <a href="#/skills">Skills</a>
+        <a href="#/journal">Recordings</a>
+        <a href="#/plan">Six-month plan</a>
+        <p class="group">Setup</p>
+        <a href="#/coach">Coach and profile</a>
+      </nav>
+      <div id="xpbar" class="xp"></div>
+      <div id="engine" class="engine"></div>
+    </aside>
+    <div class="stagewrap">
+      <div id="warn" class="warn hidden" role="status"></div>
+      <main id="app" tabindex="-1"></main>
+    </div>
+  </div>
+  <nav class="tabbar" aria-label="Sections">
+    <a href="#/home" data-also="plan">Today</a>
+    <a href="#/speak">Speak</a>
+    <a href="#/drills" data-also="words,mouth,voice,shadow,phrases,theo">Drills</a>
+    <a href="#/skills" data-also="journal">Progress</a>
+    <a href="#/coach">Coach</a>
+  </nav>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script type="module" src="js/app.js"></script>
 </body>
 </html>

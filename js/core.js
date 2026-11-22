@@ -1,5 +1,5 @@
 import { dayKey, levelFromXp, computeStreak } from './metrics.js';
-import { Mic } from './audio.js';
+import { Mic, bindMic } from './audio.js';
 
 const KEY = 'speakforge.v1';
 
@@ -7,8 +7,8 @@ export function defaultState() {
   return {
     startDate: dayKey(), xp: 0, days: {}, sessions: [], naming: [], ddk: [], twisters: [], pairs: [], taboo: [],
     category: [], pen: [], zone: [], shadow: [], anxiety: [], volume: { baseline: null }, srs: {}, exposure: {},
-    exposureLog: [], partner: [],
-    settings: { l1: 'Hindi', accent: 'american', bridgeMs: 1800, cue: true, camera: false, ritual: true, dailyMinutes: 35 },
+    exposureLog: [], partner: [], deep: [], accent: [],
+    settings: { l1: 'Hindi', accent: 'american', bridgeMs: 1800, cue: true, camera: false, ritual: true, dailyMinutes: 35, engine: 'auto' },
     ai: { provider: 'none', auto: true, model: '', endpoint: '', key: '', deployment: '', apiVersion: '2024-10-21' },
   };
 }
@@ -63,8 +63,9 @@ export function renderXp() {
   const el = document.getElementById('xpbar');
   if (!el) return;
   const l = levelFromXp(S.xp);
-  el.innerHTML = `Level <b>${l.level}</b> · ${S.xp} XP · 🔥 ${streak()} day streak
-    <div class="bar"><i style="width:${Math.round(100 * l.into / l.need)}%"></i></div>`;
+  const st = streak();
+  el.innerHTML = `<b>Level ${l.level}</b><br>${st ? `${st}-day streak` : 'Start your streak today'}
+    <div class="bar" title="${l.into} of ${l.need} XP to level ${l.level + 1}"><i style="width:${Math.round(100 * l.into / l.need)}%"></i></div>`;
 }
 
 // Returns a detached dummy element when not found so timers from a screen the user already left fail silently.
@@ -87,6 +88,7 @@ export function toast(msg) {
 }
 
 export const mic = new Mic();
+bindMic(mic);
 export async function ensureMic() {
   try { await mic.start(); return true; } catch (e) {
     warn('Microphone blocked or unavailable. Allow mic access in the browser address bar and reload. (' + e.message + ')');
@@ -113,6 +115,8 @@ export function setMeter(id, db) {
   if (i) i.style.width = dbToPct(db) + '%';
 }
 
+const CHART_COLORS = { '#7c5cff': '#f2b544', '#f59e0b': '#ff8a7a', '#ef4444': '#ff8a7a', '#06b6d4': '#7fd1c4', '#22c55e': '#7fd1c4' };
+
 export function lineChart(canvas, series, { yLabel = '' } = {}) {
   const dpr = window.devicePixelRatio || 1;
   const w = canvas.clientWidth || 300, h = canvas.clientHeight || 160;
@@ -121,24 +125,29 @@ export function lineChart(canvas, series, { yLabel = '' } = {}) {
   c.scale(dpr, dpr);
   c.clearRect(0, 0, w, h);
   const all = series.flatMap(s => s.values).filter(v => Number.isFinite(v));
-  c.fillStyle = '#9aa3b5'; c.font = '11px system-ui';
-  if (!all.length) { c.fillText('No data yet. Do a session!', 10, h / 2); return; }
+  c.fillStyle = '#c4adc7'; c.font = "13px 'Atkinson Hyperlegible Next', sans-serif";
+  if (!all.length) { c.fillText('Nothing yet. Your first session draws this line.', 0, h / 2); return; }
   let min = Math.min(...all), max = Math.max(...all);
   if (min === max) { min -= 1; max += 1; }
-  const pad = { l: 34, r: 8, t: 14, b: 16 };
+  const pad = { l: 38, r: 8, t: 30, b: 10 };
   const X = (i, n) => pad.l + (n <= 1 ? 0.5 : i / (n - 1)) * (w - pad.l - pad.r);
   const Y = v => pad.t + (1 - (v - min) / (max - min)) * (h - pad.t - pad.b);
-  c.strokeStyle = '#2a2f3d';
-  for (const v of [min, (min + max) / 2, max]) { c.beginPath(); c.moveTo(pad.l, Y(v)); c.lineTo(w - pad.r, Y(v)); c.stroke(); c.fillText(+v.toFixed(1), 2, Y(v) + 4); }
+  c.strokeStyle = '#4b2f56'; c.lineWidth = 1;
+  for (const v of [min, (min + max) / 2, max]) { c.beginPath(); c.moveTo(pad.l, Y(v)); c.lineTo(w - pad.r, Y(v)); c.stroke(); c.fillStyle = '#8f7896'; c.fillText(+v.toFixed(1), 0, Y(v) + 4); }
   if (yLabel) c.fillText(yLabel, pad.l, 10);
-  series.forEach((s, si) => {
+  let lx = pad.l;
+  series.forEach(s => {
+    const col = CHART_COLORS[s.color] || s.color;
     const vals = s.values;
-    c.strokeStyle = s.color; c.fillStyle = s.color; c.lineWidth = 2;
+    c.strokeStyle = col; c.fillStyle = col; c.lineWidth = 2.5; c.lineJoin = 'round';
     c.beginPath();
     vals.forEach((v, i) => { const x = X(i, vals.length), y = Y(v); i ? c.lineTo(x, y) : c.moveTo(x, y); });
     c.stroke();
-    vals.forEach((v, i) => { c.beginPath(); c.arc(X(i, vals.length), Y(v), 2.5, 0, 7); c.fill(); });
-    c.fillText(s.label, w - pad.r - 120, 12 + si * 12);
+    vals.forEach((v, i) => { c.beginPath(); c.arc(X(i, vals.length), Y(v), 3, 0, 7); c.fill(); });
+    c.fillRect(lx, 6, 10, 10);
+    c.fillStyle = '#f7ede6';
+    c.fillText(s.label, lx + 16, 15);
+    lx += c.measureText(s.label).width + 40;
   });
 }
 

@@ -10,6 +10,9 @@ import * as shadow from './screens/shadow.js';
 import * as phrases from './screens/phrases.js';
 import * as coach from './screens/coach.js';
 import * as skills from './screens/skills.js';
+import * as theo from './screens/theo.js';
+import { LOCAL, detectLocal, waitUntilReady, retryDetect } from './local.js';
+import { setListenMode } from './audio.js';
 import { focusCard, weeklyCard } from './screens/skills.js';
 import { aiReady } from './ai.js';
 
@@ -19,7 +22,7 @@ const MISSIONS = {
     ['zone', 1, 'Hold the confident volume zone (40 s)', '#/voice?t=zone', 3],
     ['pen', 1, 'Pen-in-mouth reading', '#/mouth?t=pen', 4],
     ['speak', 2, '1-minute random topic ×2', '#/speak?mode=oneMin', 5],
-    ['phrases', 1, 'Phrase Bank review (rescue phrases)', '#/phrases', 4],
+    ['phrases', 1, 'Phrase review (rescue phrases)', '#/phrases', 4],
     ['naming', 1, 'Rapid naming round', '#/words?t=naming', 3],
   ],
   'Fluency engine': [
@@ -28,14 +31,14 @@ const MISSIONS = {
     ['taboo', 2, 'Taboo ×2 (talk around words)', '#/words?t=taboo', 4],
     ['naming', 1, 'Rapid naming round', '#/words?t=naming', 3],
     ['shadow', 1, 'Shadowing 10 min', '#/shadow?t=along', 10],
-    ['phrases', 1, 'Phrase Bank review', '#/phrases', 4],
+    ['phrases', 1, 'Phrase review', '#/phrases', 4],
   ],
   Expression: [
     ['warmup', 1, '3-min mouth warm-up', '#/mouth?t=warmup', 3],
     ['shadow', 1, 'Shadow a Theo/Mona clip 10 min', '#/shadow?t=own', 10],
     ['speak', 2, 'PREP or 10-word-sentence speech ×2', '#/speak?mode=prep', 5],
     ['twister', 3, 'Tongue twisters ×3', '#/mouth?t=twister', 3],
-    ['phrases', 1, 'Phrase Bank review', '#/phrases', 4],
+    ['phrases', 1, 'Phrase review', '#/phrases', 4],
     ['zone', 1, 'Volume zone', '#/voice?t=zone', 2],
   ],
   'Creator mode': [
@@ -44,7 +47,7 @@ const MISSIONS = {
     ['shadow', 1, 'Shadow a creator clip 10 min', '#/shadow?t=own', 10],
     ['twister', 2, 'Tongue twisters ×2', '#/mouth?t=twister', 2],
     ['pairs', 1, 'Minimal pairs round', '#/mouth?t=pairs', 3],
-    ['phrases', 1, 'Phrase Bank review', '#/phrases', 4],
+    ['phrases', 1, 'Phrase review', '#/phrases', 4],
   ],
 };
 
@@ -55,73 +58,93 @@ export function currentPhase() { const w = currentWeek(); return PHASES.find(p =
 export function todaysTasks(phaseName, minutes, weekday, aiOn = false) {
   const all = MISSIONS[phaseName];
   let tasks;
-  if (minutes <= 10) tasks = [all[0], ['speak', 1, '1-minute random topic', '#/speak?mode=oneMin', 3], ['phrases', 1, 'Phrase Bank review', '#/phrases', 4]];
+  if (minutes <= 10) tasks = [all[0], ['speak', 1, '1-minute random topic', '#/speak?mode=oneMin', 3], ['phrases', 1, 'Phrase review', '#/phrases', 4]];
   else if (minutes <= 20) tasks = all.slice(0, 4);
   else if (minutes >= 60) tasks = [...all, aiOn ? ['partner', 1, 'AI conversation partner (10 min)', '#/coach', 10] : ['taboo', 2, 'Taboo ×2 (describe without the word)', '#/words?t=taboo', 4], ['category', 1, 'Category sprint', '#/words?t=category', 2]];
   else tasks = all;
-  if (weekday === 6) tasks = [['benchmark', 1, '⭐ Saturday benchmark speech', '#/speak?mode=benchmark', 3], ...tasks];
-  if (weekday === 0) tasks = [...tasks, ['realworld', 1, '🌍 Sunday: one real-world speaking moment (then log it)', '#/voice?t=exposure', 10]];
+  if (weekday === 6) tasks = [['benchmark', 1, 'Saturday benchmark speech', '#/speak?mode=benchmark', 3], ...tasks];
+  if (weekday === 0) tasks = [...tasks, ['realworld', 1, 'Sunday: one real-world speaking moment (then log it)', '#/voice?t=exposure', 10]];
   return tasks;
+}
+
+function greeting() {
+  const h = new Date().getHours();
+  return h < 5 ? 'Late night rehearsal.' : h < 12 ? 'Good morning.' : h < 17 ? 'Good afternoon.' : 'Good evening.';
 }
 
 function home(main) {
   const week = currentWeek(), phase = currentPhase();
   const tasks = todaysTasks(phase.name, S.settings.dailyMinutes, new Date().getDay(), aiReady(S.ai));
   const done = tasks.filter(t => todayCount(t[0]) >= t[1]).length;
+  const next = tasks.find(t => todayCount(t[0]) < t[1]);
   const speakSessions = S.sessions.map(s => s.rounds[s.rounds.length - 1]);
   const totalSec = S.sessions.reduce((a, s) => a + s.rounds.reduce((b, r) => b + (r.speakSec || 0), 0), 0);
-  const l = levelFromXp(S.xp);
   const restartsOf = r => Math.max(r.repetitions || 0, r.selfRestarts || 0);
+  const minutesLeft = tasks.filter(t => todayCount(t[0]) < t[1]).reduce((a, t) => a + t[4], 0);
   main.innerHTML = `
-    <h1>Today · Week ${week}/26 · ${esc(phase.name)}</h1>
-    <p class="sub">This week: <b>${esc(WEEK_THEMES[week] || '')}</b>. ${esc(phase.goal)} <a href="#/coach">(${S.settings.dailyMinutes} min/day · change)</a></p>
-    <div class="grid g4">
-      <div class="card"><div class="stat">${l.level} <small>level</small></div><div class="muted">${S.xp} XP</div></div>
-      <div class="card"><div class="stat">🔥 ${streak()} <small>day streak</small></div><div class="muted">Don't break the chain</div></div>
-      <div class="card"><div class="stat">${S.sessions.length} <small>speeches</small></div><div class="muted">${Math.round(totalSec / 60)} min spoken</div></div>
-      <div class="card"><div class="stat">${done}/${tasks.length} <small>today</small></div><div class="muted">~${tasks.reduce((a, t) => a + t[4], 0)} min mission</div></div>
-    </div><br>
+    <section class="hero">
+      <div>
+        <h1>${greeting()} ${next ? 'Your stage is ready.' : 'Today’s rehearsal is done.'}</h1>
+        <p class="sub" style="margin-bottom:0">Week ${week} of 26, ${esc(phase.name.toLowerCase())}. This week you’re working on ${esc((WEEK_THEMES[week] || '').toLowerCase())}.</p>
+        ${next ? `<div class="next-up row"><a class="btn" href="${next[3]}">Start with: ${esc(next[2])}</a><span class="muted">About ${minutesLeft} minutes left today</span></div>`
+          : `<div class="next-up row"><a class="btn" href="#/journal">Listen to today’s recordings</a><span class="muted">Come back tomorrow to keep your streak.</span></div>`}
+        <div class="meta">
+          <div><b>${streak()}</b>day streak</div>
+          <div><b>${S.sessions.length}</b>speeches</div>
+          <div><b>${Math.round(totalSec / 60)}</b>minutes spoken</div>
+          <div><b>${done} of ${tasks.length}</b>done today</div>
+        </div>
+      </div>
+      <div class="hero-spot" aria-hidden="true"><svg viewBox="0 0 60 150" fill="none"><rect x="18" y="4" width="24" height="40" rx="12" fill="#f7ede6"/><path d="M10 34c0 12 9 20 20 20s20-8 20-20" stroke="#c4adc7" stroke-width="3" stroke-linecap="round"/><path d="M30 54v84" stroke="#c4adc7" stroke-width="3"/><ellipse cx="30" cy="140" rx="18" ry="4" fill="#8f7896"/></svg></div>
+    </section>
+    <div class="grid g2" style="align-items:start">
+      <div class="card hl"><h2>Today’s run sheet</h2>
+        <div class="runsheet">${tasks.map(t => { const c = todayCount(t[0]), ok = c >= t[1]; return `<a href="${t[3]}" style="text-decoration:none;color:inherit"><div class="task ${ok ? 'done' : ''}"><div class="chk"></div><div class="t">${esc(t[2])}</div><span class="muted">${t[1] > 1 ? `${Math.min(c, t[1])} of ${t[1]}, ` : ''}${t[4]} min</span></div></a>`; }).join('')}</div>
+        <p class="muted" style="margin-top:14px">Warm up first, speak last. Missed a day? Just do the next one. Daily time: ${S.settings.dailyMinutes} minutes (<a href="#/coach">change</a>).</p></div>
+      <div class="grid">${focusCard()}${weeklyCard()}</div>
+    </div>
+    <h2 style="margin-top:44px">How you’re changing</h2>
     <div class="grid g2">
-      <div class="card hl"><h2>✅ Today's mission</h2>
-        ${tasks.map(t => { const c = todayCount(t[0]), ok = c >= t[1]; return `<a href="${t[3]}" style="text-decoration:none;color:inherit"><div class="task ${ok ? 'done' : ''}"><div class="chk">${ok ? '✔' : ''}</div><div class="t">${esc(t[2])}</div><span class="pill">${Math.min(c, t[1])}/${t[1]} · ${t[4]}m</span></div></a>`; }).join('')}
-        <p class="muted">Order matters: warm-up first, speaking last. Miss a day? Just do the next one.</p></div>
-      <div>${focusCard()}<br>${weeklyCard()}</div>
-    </div><br>
-    <div class="card"><h2>🧭 Your 5 problems → where to train</h2>
-      <table>
-        <tr><td><b>1. Forget a word → restart</b></td><td>Speaking Arena (BRIDGE cards, SPACE restart counter, No-Restart, Question chain), Word Lab (Taboo, Rapid naming incl. <i>My lost words</i>), Phrase Bank, AI conversation partner</td></tr>
-        <tr><td><b>2. Articulation</b></td><td>Mouth Gym (warm-up, pen-in-mouth, twisters and minimal pairs with model-vs-you playback), clarity % in every speech, Shadowing</td></tr>
-        <tr><td><b>3. Nervous to speak loudly</b></td><td>Live “speak up” coaching in the Arena, camera mode, calm-down ritual, Confidence Lab (volume zone, ladder, real-world exposure log)</td></tr>
-        <tr><td><b>4. Daily system</b></td><td>This adaptive mission, focus of the day, weekly report, Saturday benchmark, 6-Month Plan, streak/XP</td></tr>
-        <tr><td><b>5. Which skills?</b></td><td><a href="#/skills">Skill map</a>: your live score on each skill + lessons</td></tr>
-      </table></div><br>
-    <div class="grid g2">
-      <div class="card"><h3>Speaking speed & freezes</h3><canvas id="c1"></canvas></div>
-      <div class="card"><h3>Restarts & fillers per speech</h3><canvas id="c2"></canvas></div>
-      <div class="card"><h3>Word retrieval speed (ms, lower = better)</h3><canvas id="c3"></canvas></div>
-      <div class="card"><h3>Clarity % & volume-zone % per speech</h3><canvas id="c4"></canvas></div>
+      <div class="card"><h3>Speed and freezes per speech</h3><canvas id="c1"></canvas></div>
+      <div class="card"><h3>Restarts and fillers per speech</h3><canvas id="c2"></canvas></div>
+      <div class="card"><h3>Time to find a word (lower is better)</h3><canvas id="c3"></canvas></div>
+      <div class="card"><h3>Clarity and volume per speech</h3><canvas id="c4"></canvas></div>
     </div>`;
-  lineChart($('#c1'), [{ label: 'words/min', values: speakSessions.map(r => r.wpm), color: '#7c5cff' }, { label: 'freezes', values: speakSessions.map(r => r.freezes), color: '#f59e0b' }]);
+  lineChart($('#c1'), [{ label: 'words per minute', values: speakSessions.map(r => r.wpm), color: '#7c5cff' }, { label: 'freezes', values: speakSessions.map(r => r.freezes), color: '#f59e0b' }]);
   lineChart($('#c2'), [{ label: 'restarts', values: speakSessions.map(restartsOf), color: '#ef4444' }, { label: 'fillers', values: speakSessions.map(r => r.fillers), color: '#06b6d4' }]);
-  lineChart($('#c3'), [{ label: 'naming ms', values: S.naming.map(n => n.avgMs), color: '#22c55e' }]);
-  lineChart($('#c4'), [{ label: 'clarity %', values: speakSessions.filter(r => r.clarity != null).map(r => r.clarity), color: '#22c55e' }, { label: 'zone %', values: speakSessions.filter(r => r.zonePct != null).map(r => r.zonePct), color: '#06b6d4' }]);
+  lineChart($('#c3'), [{ label: 'milliseconds', values: S.naming.map(n => n.avgMs), color: '#22c55e' }]);
+  lineChart($('#c4'), [{ label: 'clarity %', values: speakSessions.filter(r => r.clarity != null).map(r => r.clarity), color: '#7c5cff' }, { label: 'in volume zone %', values: speakSessions.filter(r => r.zonePct != null).map(r => r.zonePct), color: '#06b6d4' }]);
+}
+
+const DRILLS = [
+  ['#/words', 'Find words fast', 'Rapid naming, Taboo, category and synonym sprints. For the moment a word disappears mid-sentence.'],
+  ['#/mouth', 'Clear speech', 'Warm-up, pa-ta-ka, tongue twisters, sound pairs for your first language, pen-in-mouth reading.'],
+  ['#/voice', 'Volume and nerves', 'Find your confident volume, climb the exposure ladder, breathe before you speak.'],
+  ['#/shadow', 'Shadowing', 'Speak along with a native model, sentence by sentence or with your own Theo and Mona clips.'],
+  ['#/phrases', 'Phrases', 'Ready-made chunks and your lost words, reviewed just before you would forget them.'],
+  ['#/theo', 'Learn from Theo', 'His measured pace, pauses and accent, an accent lab with real measurement, and his seven hook patterns.'],
+];
+
+function drills(main) {
+  main.innerHTML = `<h1>Drills</h1><p class="sub">Short, focused practice for one skill at a time. Your run sheet on Today picks them for you; come here when you want more.</p>
+    <div class="grid">${DRILLS.map(([href, name, what]) => `<a href="${href}" style="text-decoration:none;color:inherit"><div class="card"><h2 style="margin-bottom:6px">${name}</h2><p class="muted" style="margin:0;font-size:15px">${what}</p></div></a>`).join('')}</div>`;
 }
 function plan(main) {
   const week = currentWeek(), phase = currentPhase();
   main.innerHTML = `
-    <h1>🗺️ Your 6-month plan</h1>
+    <h1>Your six-month plan</h1>
     <p class="sub">26 weeks, 4 phases, ~35 min/day. Built from the research on fluency (4/3/2, formulaic chunks, shadowing), articulation (motor drills), and anxiety (graded exposure), plus Mona's (babystepstothemic) proven routine.</p>
     <div class="card row"><span>Start date:</span><input type="date" id="sd" value="${S.startDate}"><button class="ghost small" id="sds">Save</button><span class="muted">You are in <b>week ${week}</b> · ${esc(phase.name)}</span></div><br>
     <div class="grid g2">${PHASES.map(p => `<div class="card phase ${p === phase ? 'now' : ''}"><h2>Weeks ${p.weeks[0]}-${p.weeks[1]} · ${esc(p.name)}</h2><p>${esc(p.goal)}</p>
       <p class="muted">${Array.from({ length: p.weeks[1] - p.weeks[0] + 1 }, (_, i) => p.weeks[0] + i).map(w => `<span class="pill" style="${w === week ? 'background:var(--accent);color:#fff' : ''}">W${w}: ${esc(WEEK_THEMES[w])}</span>`).join(' ')}</p></div>`).join('')}</div><br>
     <div class="grid g2">
       <div class="card"><h2>Daily routine (~35 min)</h2><table>
-        <tr><td>3 min</td><td>Warm-up (Mouth Gym) + box breathing if nervous</td></tr>
+        <tr><td>3 min</td><td>Warm-up (Clear speech) + box breathing if nervous</td></tr>
         <tr><td>5 min</td><td>Articulation drill of the week (pen, twisters, minimal pairs)</td></tr>
         <tr><td>10 min</td><td>Shadowing (Theo/Mona clip or built-in scripts)</td></tr>
-        <tr><td>5 min</td><td>Word Lab (naming / Taboo / sprints)</td></tr>
-        <tr><td>3 min</td><td>Phrase Bank review</td></tr>
-        <tr><td>8 min</td><td>Speaking Arena: 1-min topics, 4/3/2, PREP or Creator</td></tr>
+        <tr><td>5 min</td><td>Find words fast (naming / Taboo / sprints)</td></tr>
+        <tr><td>3 min</td><td>Phrase review</td></tr>
+        <tr><td>8 min</td><td>Speak: 1-min topics, 4/3/2, PREP or Creator</td></tr>
         <tr><td>1 min</td><td>Rate nervousness, listen back to ONE recording</td></tr></table></div>
       <div class="card"><h2>Weekly rhythm</h2><table>
         <tr><td>Mon-Fri</td><td>Daily mission (Today tab)</td></tr>
@@ -145,10 +168,10 @@ function mediaTag(r, preload, url) {
 }
 
 async function journal(main) {
-  main.innerHTML = `<h1>📓 Journal</h1><p class="sub">Every speech is saved locally (never uploaded). Listen to your first vs latest. That is your proof of progress.</p>
+  main.innerHTML = `<h1>Recordings</h1><p class="sub">Every speech is saved locally (never uploaded). Listen to your first vs latest. That is your proof of progress.</p>
     <div id="cmp"></div><div class="card"><h2>Recordings</h2><div id="recs" class="muted">Loading…</div></div><br>
     <div class="card"><h2>Speech history</h2><div id="hist"></div></div><br>
-    <div class="card"><h2>Your data</h2><div class="row"><button class="ghost" id="exp">⬇ Export progress (JSON)</button><label class="btn" style="background:var(--panel2);border:1px solid var(--line)">⬆ Import<input type="file" id="imp" accept=".json" class="hidden"></label><span class="spacer"></span><button class="red small" id="reset">Reset everything</button></div>
+    <div class="card"><h2>Your data</h2><div class="row"><button class="ghost" id="exp">Export progress (JSON)</button><label class="btn" style="background:var(--panel2);border:1px solid var(--line)">Import<input type="file" id="imp" accept=".json" class="hidden"></label><span class="spacer"></span><button class="red small" id="reset">Reset everything</button></div>
     <p class="muted">Progress lives in this browser (localStorage + IndexedDB). Export weekly as a backup.</p></div>`;
   let recs = [];
   try { recs = await listRecordings(); } catch { /* unsupported */ }
@@ -158,15 +181,15 @@ async function journal(main) {
     const first = sp[sp.length - 1], latest = sp[0];
     const card = (r, label, cls) => `<div class="card ${cls}"><h3>${label}: ${new Date(r.ts).toLocaleDateString()}</h3><p class="muted">${esc(r.title)}</p>${mediaTag(r, 'auto')}
       <p class="muted">${r.metrics?.wpm ?? '-'} wpm · ${r.metrics?.freezes ?? '-'} freezes · ${Math.max(r.metrics?.repetitions || 0, r.metrics?.selfRestarts || 0)} restarts${r.metrics?.clarity != null ? ` · ${r.metrics.clarity}% clarity` : ''}</p></div>`;
-    $('#cmp').innerHTML = `<h2>${bench.length >= 2 ? '⭐ Benchmark: first vs latest' : 'First vs latest speech'}</h2><div class="grid g2">${card(first, 'First', '')}${card(latest, 'Latest', 'hl')}</div><br>`;
+    $('#cmp').innerHTML = `<h2>${bench.length >= 2 ? 'Benchmark: first vs latest' : 'First vs latest speech'}</h2><div class="grid g2">${card(first, 'First', '')}${card(latest, 'Latest', 'hl')}</div><br>`;
   }
   $('#recs').innerHTML = recs.length ? `<table>${recs.slice(0, 60).map(r => {
     const u = URL.createObjectURL(r.blob);
     const ext = r.blob.type.includes('mp4') ? (r.video ? 'mp4' : 'm4a') : 'webm';
-    return `<tr><td>${new Date(r.ts).toLocaleString()}<br><span class="muted">${r.video ? '🎥 ' : ''}${esc(r.title)}</span></td><td>${mediaTag(r, 'none', u)}</td>
+    return `<tr><td>${new Date(r.ts).toLocaleString()}<br><span class="muted">${r.video ? 'Video: ' : ''}${esc(r.title)}</span></td><td>${mediaTag(r, 'none', u)}</td>
       <td class="muted">${r.metrics ? `${r.metrics.wpm} wpm<br>${r.metrics.freezes} freezes` : ''}</td>
       <td><a href="${u}" download="speakforge-${dayKey(new Date(r.ts))}-${r.id}.${ext}">download</a><br><a href="#" data-del="${r.id}">delete</a></td></tr>`;
-  }).join('')}</table>` : 'No recordings yet. Do a Speaking Arena session.';
+  }).join('')}</table>` : 'No recordings yet. Do a speech.';
   $('#recs').querySelectorAll('[data-del]').forEach(a => a.onclick = async e => { e.preventDefault(); await deleteRecording(a.dataset.del); journal(main); });
   $('#hist').innerHTML = S.sessions.length ? `<table><tr><th>Date</th><th>Mode</th><th>Topic</th><th>WPM</th><th>Freezes</th><th>Restarts</th><th>Fillers</th><th>Nerves</th></tr>
     ${S.sessions.slice().reverse().slice(0, 50).map(s => { const r = s.rounds[s.rounds.length - 1]; return `<tr><td>${new Date(s.ts).toLocaleDateString()}</td><td>${esc(s.mode)}</td><td>${esc(s.topic)}</td><td>${r.wpm}</td><td>${r.freezes}</td><td>${Math.max(r.repetitions || 0, r.selfRestarts || 0)}</td><td>${r.fillers}</td><td>${s.anxBefore ?? '-'}→${s.anxAfter ?? '-'}</td></tr>`; }).join('')}</table>` : '<p class="muted">No speeches yet.</p>';
@@ -185,7 +208,7 @@ async function journal(main) {
   $('#reset').onclick = () => { if (confirm('Delete all progress (recordings stay)?')) { replaceState({}); journal(main); } };
 }
 
-const ROUTES = { home, plan, journal, speak: speak.render, words: words.render, mouth: mouth.render, voice: voice.render, shadow: shadow.render, phrases: phrases.render, coach: coach.render, skills: skills.render };
+const ROUTES = { home, plan, journal, drills, speak: speak.render, words: words.render, mouth: mouth.render, voice: voice.render, shadow: shadow.render, phrases: phrases.render, coach: coach.render, skills: skills.render, theo: theo.render };
 
 function route() {
   stopAllAudio();
@@ -193,19 +216,44 @@ function route() {
   const [name, qs] = raw.split('?');
   const params = Object.fromEntries(new URLSearchParams(qs || ''));
   const fn = ROUTES[name] || home;
-  document.querySelectorAll('nav a').forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#/' + name));
+  document.querySelectorAll('nav a').forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#/' + name || (a.dataset.also || '').split(',').includes(name)));
   const main = document.getElementById('app');
   window.scrollTo(0, 0);
-  try { fn(main, params); } catch (e) { main.innerHTML = `<div class="card bad">Something broke: ${esc(e.message)}</div>`; console.error(e); }
+  try { fn(main, params); main.focus({ preventScroll: true }); } catch (e) { main.innerHTML = `<div class="card bad">Something broke: ${esc(e.message)}</div>`; console.error(e); }
 }
 
 window.addEventListener('hashchange', route);
 if (!(window.SpeechRecognition || window.webkitSpeechRecognition)) {
   const w = document.getElementById('warn');
-  w.textContent = 'Speech recognition is not available in this browser. Open SpeakForge in Microsoft Edge or Google Chrome for transcripts and scoring.';
+  w.textContent = 'This browser has no built-in speech recognition. Use Safari, Chrome or Edge, or start SpeakForge with start.sh to recognise speech privately on your computer.';
   w.classList.remove('hidden');
 }
 if (window.speechSynthesis) speechSynthesis.onvoiceschanged = () => {};
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
 renderXp();
+renderEngine();
 route();
+detectLocal().then(() => {
+  applyEngine();
+  renderEngine();
+  if (LOCAL.ok) route();
+  waitUntilReady(renderEngine);
+  retryDetect(() => { applyEngine(); renderEngine(); waitUntilReady(renderEngine); if (/^#?\/?(home)?$/.test(location.hash.replace('#/', ''))) route(); });
+});
+
+// Use local Whisper and local AI automatically when the SpeakForge server is running on this computer.
+export function applyEngine() {
+  const e = S.settings.engine || 'auto';
+  setListenMode(LOCAL.ok && LOCAL.whisper && e !== 'browser' ? 'local' : 'browser');
+  if (LOCAL.ok && LOCAL.ollama && S.ai.provider === 'none' && !S.ai.chosen) { S.ai.provider = 'local'; save(); }
+  const w = document.getElementById('warn');
+  if (LOCAL.ok && LOCAL.whisper && e !== 'browser') { w.classList.add('hidden'); }
+}
+
+function renderEngine() {
+  const el = document.getElementById('engine');
+  if (!el) return;
+  el.innerHTML = LOCAL.ok
+    ? `Private mode: everything runs on this computer.<br>Speech: <b>${esc(LOCAL.whisper || 'browser')}</b>${LOCAL.whisper && !LOCAL.ready ? ' (loading…)' : ''}${LOCAL.ollama ? `<br>Coach: <b>${esc(LOCAL.model || 'Ollama')}</b>` : ''}`
+    : 'Browser mode. Start it with start.sh to run everything on your computer.';
+}

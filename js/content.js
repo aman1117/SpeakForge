@@ -246,14 +246,14 @@ export const WEEK_THEMES = {
 
 export const SKILLS = [
   { name: 'Breath support', what: 'Steady air from the belly so your voice doesn’t fade or shake.', drill: 'Box breathing, “count to 20 on one breath”' },
-  { name: 'Volume & projection', what: 'Being heard easily without shouting.', drill: 'Confidence Lab: hold the volume zone' },
+  { name: 'Volume & projection', what: 'Being heard easily without shouting.', drill: 'Volume and nerves: hold the volume zone' },
   { name: 'Articulation', what: 'Precise lips/tongue/jaw movement so each sound is clean.', drill: 'Pen-in-mouth, tongue twisters, pa-ta-ka' },
   { name: 'Pronunciation (sounds)', what: 'Correct individual sounds: V/W, TH, R, vowels.', drill: 'Minimal pairs' },
   { name: 'Prosody', what: 'Stress, rhythm, pitch movement, intonation.', drill: 'Shadowing, stress-the-key-word reading' },
   { name: 'Pausing', what: 'Pausing BETWEEN ideas, not inside phrases.', drill: 'Slash-marked reading, 10-word sentences' },
   { name: 'Lexical retrieval', what: 'Finding words fast under pressure.', drill: 'Rapid naming, category sprint, synonym sprint' },
   { name: 'Repair fluency', what: 'Recovering from a lost word WITHOUT restarting.', drill: 'No-Restart speaking + rescue phrases + Taboo' },
-  { name: 'Formulaic chunks', what: 'Ready-made phrases that let you speak without building every word.', drill: 'Phrase Bank (spaced repetition)' },
+  { name: 'Formulaic chunks', what: 'Ready-made phrases that let you speak without building every word.', drill: 'Phrases (spaced repetition)' },
   { name: 'Structure', what: 'Organising thoughts: hook, point, reason, example, close.', drill: 'PREP mode, 4/3/2' },
   { name: 'Confidence & presence', what: 'Speaking up despite nerves; eye contact; energy.', drill: 'Exposure ladder, Toastmasters, filming daily' },
   { name: 'Listening & imitation', what: 'Hearing native patterns and copying them.', drill: 'Shadowing Theo/Mona clips' },
@@ -291,7 +291,7 @@ export const AFFIRMATIONS = [
 export const LESSONS = {
   'Repair fluency': { good: 'Fluent speakers lose words too. They never rewind; they bridge ("the thing that…") and keep the same sentence.', how: ['Use P.B.C.: Pause → Bridge → Continue', 'Press SPACE every time you restart, to build awareness', 'Do one No-Restart challenge a day'], target: 'Under 1 freeze and 1 restart per minute' },
   'Lexical retrieval': { good: 'Words come out within ~1 s because they have been retrieved many times before.', how: ['Rapid naming daily', 'Add every word you lost to “My lost words”', 'Category and synonym sprints'], target: 'Naming average under 1.4 s at 90%+' },
-  'Formulaic chunks': { good: 'Natives speak in pre-built chunks (“to be honest”, “which means”), which frees the brain to think.', how: ['Phrase Bank review daily', 'Use 3 phrases in every speech', 'Add phrases you hear from Theo/Mona'], target: 'Most phrases in box 3+' },
+  'Formulaic chunks': { good: 'Natives speak in pre-built chunks (“to be honest”, “which means”), which frees the brain to think.', how: ['Phrase review daily', 'Use 3 phrases in every speech', 'Add phrases you hear from Theo/Mona'], target: 'Most phrases in box 3+' },
   'Pace': { good: 'Comfortable, clear pace: 140-170 wpm for impromptu speech.', how: ['4/3/2: same talk in less time', 'Shadow at 1× then 1.15×'], target: '150-170 wpm with clarity 90%+' },
   'Pausing (no fillers)': { good: 'Short silent pauses between ideas instead of “um/uh/basically”.', how: ['10-word sentences', 'Replace a filler with a silent half-second breath'], target: 'Under 2 fillers per minute' },
   'Articulation': { good: 'Every syllable is clean; word endings are finished; mouth opens enough.', how: ['Warm-up + pen-in-mouth daily', 'Tongue twisters slow → fast', 'Watch recognition clarity %'], target: 'Pen-reading clarity 95%, pa-ta-ka 6+/s' },

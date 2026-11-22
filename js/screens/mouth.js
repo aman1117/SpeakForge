@@ -19,11 +19,11 @@ let tab = 'warmup';
 export function render(main, params = {}) {
   if (params.t) tab = params.t;
   main.innerHTML = `
-    <h1>👄 Mouth Gym</h1>
+    <h1>Clear speech</h1>
     <p class="sub">Articulation is a <b>motor skill</b>: lips, tongue and jaw moving precisely and fast. Train it like a muscle: warm up, drill, then speed.</p>
     <div class="tabs">
-      <button data-t="warmup">🔥 3-min warm-up</button><button data-t="ddk">⏱️ Pa-ta-ka speed test</button>
-      <button data-t="twister">🌀 Tongue twisters</button><button data-t="pairs">🎯 Minimal pairs</button><button data-t="pen">🖊️ Pen-in-mouth reading</button>
+      <button data-t="warmup">3-min warm-up</button><button data-t="ddk">Pa-ta-ka speed test</button>
+      <button data-t="twister">Tongue twisters</button><button data-t="pairs">Minimal pairs</button><button data-t="pen">Pen-in-mouth reading</button>
     </div><div id="pane"></div>`;
   main.querySelectorAll('.tabs button').forEach(b => {
     b.classList.toggle('on', b.dataset.t === tab);
@@ -34,12 +34,12 @@ export function render(main, params = {}) {
 
 function warmup(pane) {
   pane.innerHTML = `<div class="card hl"><h2>Guided warm-up (~3 min)</h2><p>Do this before every session, like stretching before a run.</p>
-    <ol>${WARMUP.map(w => `<li>${esc(w[0])} <span class="muted">(${w[1]}s)</span></li>`).join('')}</ol><button id="wgo">Start guided warm-up ▶</button></div><div id="play"></div>`;
+    <ol>${WARMUP.map(w => `<li>${esc(w[0])} <span class="muted">(${w[1]}s)</span></li>`).join('')}</ol><button id="wgo">Start guided warm-up</button></div><div id="play"></div>`;
   $('#wgo').onclick = async () => {
     let stop = false;
     for (let i = 0; i < WARMUP.length && !stop && pane.isConnected; i++) {
       for (let s = WARMUP[i][1]; s > 0 && !stop; s--) {
-        $('#play').innerHTML = `<br><div class="card" style="text-align:center"><span class="pill">Step ${i + 1}/${WARMUP.length}</span><div class="prompt">${esc(WARMUP[i][0])}</div><div class="big">${s}</div><button class="ghost small" id="wnext">Next ▶</button> <button class="ghost small" id="wstop">Stop</button></div>`;
+        $('#play').innerHTML = `<br><div class="card" style="text-align:center"><span class="pill">Step ${i + 1}/${WARMUP.length}</span><div class="prompt">${esc(WARMUP[i][0])}</div><div class="big">${s}</div><button class="ghost small" id="wnext">Next</button> <button class="ghost small" id="wstop">Stop</button></div>`;
         let next = false;
         $('#wnext').onclick = () => { next = true; };
         $('#wstop').onclick = () => { stop = true; };
@@ -47,15 +47,15 @@ function warmup(pane) {
         if (next) break;
       }
     }
-    if (!stop && pane.isConnected) { logActivity('warmup', 10); $('#play').innerHTML = '<br><div class="card"><h2 class="ok">Warm-up done ✔</h2><p>Your mouth is ready. Go to the Speaking Arena or tongue twisters.</p></div>'; }
+    if (!stop && pane.isConnected) { logActivity('warmup', 10); $('#play').innerHTML = '<br><div class="card"><h2 class="ok">Warm-up done</h2><p>Your mouth is ready. Go to Speak or tongue twisters.</p></div>'; }
   };
 }
 
 function ddk(pane) {
-  const hist = S.ddk.slice(-10).map(d => d.rate.toFixed(1)).join(' → ') || 'none yet';
+  const hist = S.ddk.slice(-10).map(d => d.rate.toFixed(1)).join(' ') || 'none yet';
   pane.innerHTML = `<div class="grid g2"><div class="card hl"><h2>Pa-ta-ka speed test</h2>
     <p>Speech therapists use this (diadochokinesis) to measure articulation speed. Say <b>“pa-ta-ka-pa-ta-ka…”</b> as fast <i>and clearly</i> as you can for 5 seconds.</p>
-    ${meterHtml('dlvl')}<br><button id="dgo">Start (1 s quiet, then go) ▶</button><div id="dres"></div></div>
+    ${meterHtml('dlvl')}<br><button id="dgo">Start (1 s quiet, then go)</button><div id="dres"></div></div>
     <div class="card"><h2>History (syllables/sec)</h2><p>${hist}</p><p class="muted">Typical adults: ~5-7 syllables/sec. Clarity first; if syllables blur, slow down. Use a quiet room. The counter detects loudness bursts, so it's an estimate.</p></div></div>`;
   $('#dgo').onclick = async () => {
     if (!(await ensureMic())) return;
@@ -84,7 +84,7 @@ function twister(pane) {
     <p>Level 1: slow and exaggerated. Level 2: normal speed. Level 3: say it 3× fast. Score = how much speech recognition understood.</p>
     <select id="tw" style="width:100%">${opts}</select><br><br>
     <div class="passage" id="twt"></div><br>
-    <div class="row"><button class="ghost" id="tl">🔊 Listen (slow)</button><button class="ghost" id="tf">🔊 Listen (fast)</button><button id="ttry">🎙️ Try it</button><button class="ghost" id="trand">🎲 Random</button></div>
+    <div class="row"><button class="ghost" id="tl">Listen (slow)</button><button class="ghost" id="tf">Listen (fast)</button><button id="ttry">Try it</button><button class="ghost" id="trand">Random</button></div>
     <div id="tres"></div></div>`;
   const cur = () => TONGUE_TWISTERS[+$('#tw').value];
   const show = () => { $('#twt').textContent = cur().text; $('#tres').innerHTML = ''; };
@@ -113,7 +113,7 @@ function twister(pane) {
       save();
       logActivity('twister', 5);
       $('#tres').innerHTML = `<br><div class="kpi"><div><b class="${score >= 85 ? 'ok' : score >= 60 ? 'warnc' : 'bad'}">${score}%</b><span class="muted">understood</span></div><div><b>${secs.toFixed(1)}s</b><span class="muted">time</span></div></div>
-        <div class="row" style="margin-top:8px"><button class="ghost small" id="pm">🔊 Model</button>${blob ? '<button class="ghost small" id="py">▶ You</button>' : ''}<span class="muted">Compare model → you → model. Hear the difference, then retry.</span></div>
+        <div class="row" style="margin-top:8px"><button class="ghost small" id="pm">Model</button>${blob ? '<button class="ghost small" id="py">You</button>' : ''}<span class="muted">Compare model → you → model. Hear the difference, then retry.</span></div>
         <p>Heard: “${esc(heard)}”</p>${missed.length ? `<p>Unclear words: ${missed.map(m => `<b class="bad">${esc(m)}</b>`).join(', ')}: slow down and over-articulate these.</p>` : '<p class="ok">Every word was clear!</p>'}`;
       $('#pm').onclick = () => say(cur().text, { rate: 0.85 });
       if (blob) { const a = new Audio(URL.createObjectURL(blob)); $('#py').onclick = () => { a.currentTime = 0; a.play(); }; }
@@ -125,7 +125,7 @@ function pairs(pane) {
   const pri = L1_PRIORITY[S.settings.l1] || L1_PRIORITY.Other;
   const rank = g => { const i = pri.indexOf(g.group); return i < 0 ? 99 : i; };
   const order = MINIMAL_PAIRS.map((g, i) => [g, i]).sort((a, b) => rank(a[0]) - rank(b[0]));
-  const opts = order.map(([g, i]) => `<option value="${i}">${pri.includes(g.group) ? '⭐ ' : ''}${esc(g.group)}</option>`).join('');
+  const opts = order.map(([g, i]) => `<option value="${i}">${pri.includes(g.group) ? 'Priority: ' : ''}${esc(g.group)}</option>`).join('');
   const stats = MINIMAL_PAIRS.map(g => {
     const rs = S.pairs.filter(p => p.group === g.group);
     if (!rs.length) return '';
@@ -134,12 +134,12 @@ function pairs(pane) {
   }).join('');
   pane.innerHTML = `<div class="grid g2"><div class="card hl"><h2>Minimal pairs</h2>
     <p>Words that differ by one sound. If the recogniser hears the <i>other</i> word, the listener would too.</p>
-    <select id="pg">${opts}</select> <button id="pgo">Start 10 trials ▶</button>
+    <select id="pg">${opts}</select> <button id="pgo">Start 10 trials</button>
     <p class="muted" id="ptip"></p><div id="play"></div></div>
     <div class="card"><h2>Your scores</h2>${stats ? `<table><tr><th>Sound</th><th>Last</th><th>Rounds</th></tr>${stats}</table>` : '<p class="muted">No rounds yet.</p>'}
-    <p class="muted">⭐ = priority sounds for ${esc(S.settings.l1)} speakers (set your first language in <a href="#/coach">AI Coach &amp; Profile</a>). When a word is misheard, the model plays automatically so you hear the target.</p></div></div>`;
+    <p class="muted">“Priority” marks the hardest sounds for ${esc(S.settings.l1)} speakers (set your first language in <a href="#/coach">Coach and profile</a>). When a word is misheard, the model plays automatically so you hear the target.</p></div></div>`;
   const g = () => MINIMAL_PAIRS[+$('#pg').value];
-  const tip = () => { $('#ptip').textContent = '💡 ' + g().tip; };
+  const tip = () => { $('#ptip').textContent = g().tip; };
   tip();
   $('#pg').onchange = tip;
   $('#pgo').onclick = async () => {
@@ -156,7 +156,7 @@ function pairs(pane) {
       const mark = l.finalText.length;
       let verdict = null;
       $('#play').innerHTML = `<div style="text-align:center"><span class="pill">${i + 1}/${trials.length}</span><div class="prompt">Say: <span style="font-size:34px">${esc(target)}</span></div><p class="muted">(not “${esc(other)}”)</p>
-        <button class="ghost small" id="plisten">🔊 hear it</button> <button class="ghost small" id="pskip">skip</button><p id="pheard" class="muted">listening…</p></div>`;
+        <button class="ghost small" id="plisten">hear it</button> <button class="ghost small" id="pskip">skip</button><p id="pheard" class="muted">listening…</p></div>`;
       $('#plisten').onclick = () => say(`${target}. ${target}.`, { rate: 0.8 });
       let skip = false;
       $('#pskip').onclick = () => { skip = true; };
@@ -171,7 +171,7 @@ function pairs(pane) {
       }
       if (verdict === 'ok') correct++;
       else say(target, { rate: 0.8 });
-      $('#pheard').innerHTML = verdict === 'ok' ? '<b class="ok">✔ clear</b>' : verdict === 'other' ? `<b class="bad">✘ sounded like “${esc(other)}”</b>` : '<b class="warnc">not recognised</b>';
+      $('#pheard').innerHTML = verdict === 'ok' ? '<b class="ok">Clear</b>' : verdict === 'other' ? `<b class="bad">Sounded like “${esc(other)}”</b>` : '<b class="warnc">not recognised</b>';
       await sleep(verdict === 'ok' ? 900 : 1800);
     }
     await l.stop();
@@ -186,13 +186,13 @@ function pairs(pane) {
 
 function pen(pane) {
   const passage = pick(READING_PASSAGES);
-  const hist = S.pen.slice(-6).map(p => `${p.score}% · ${p.wpm} wpm`).join(' → ') || 'none yet';
+  const hist = S.pen.slice(-6).map(p => `${p.score}% · ${p.wpm} wpm`).join(' ') || 'none yet';
   pane.innerHTML = `<div class="card hl"><h2>Pen-in-mouth reading (Mona's drill)</h2>
     <p><b>Step 1:</b> Hold a pen <i>horizontally</i> between your teeth (like a dog holding a bone). Read the passage aloud for 60 s, working hard to be understood. Your tongue and lips have to work extra.<br>
     <b>Step 2:</b> Remove the pen and read it again. It will feel incredibly easy and crisp. SpeakForge scores this second read.</p>
     <p class="muted">History: ${hist}</p>
     <div class="passage card" style="background:var(--panel2)">${esc(passage)}</div><br>
-    <div class="row"><button id="p1">Step 1: 60 s with pen ▶</button><button class="ghost" id="p2">Skip to step 2</button></div><div id="pres"></div></div>`;
+    <div class="row"><button id="p1">Step 1: 60 s with pen</button><button class="ghost" id="p2">Skip to step 2</button></div><div id="pres"></div></div>`;
   const step2 = async () => {
     if (!speechSupported()) { $('#pres').innerHTML = '<p class="bad">Needs Edge/Chrome for scoring.</p>'; return; }
     if (!(await ensureMic())) return;
@@ -217,7 +217,7 @@ function pen(pane) {
   };
   $('#p1').onclick = async () => {
     for (let s = 60; s > 0 && pane.isConnected; s--) {
-      $('#pres').innerHTML = `<br><div style="text-align:center"><p>🖊️ Pen in. Read aloud, over-articulate.</p><div class="big">${s}</div><button class="ghost small" id="pnext">Go to step 2</button></div>`;
+      $('#pres').innerHTML = `<br><div style="text-align:center"><p>Pen in. Read aloud, over-articulate.</p><div class="big">${s}</div><button class="ghost small" id="pnext">Go to step 2</button></div>`;
       let next = false;
       $('#pnext').onclick = () => { next = true; };
       await sleep(1000);

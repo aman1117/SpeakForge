@@ -1,7 +1,9 @@
 # Your 6-Month Speaking Transformation Plan
 
 *Built 22 Nov 2026 for: fluent, clear, confident English (target: Instagram creator level, Theo-style delivery).*
-*Companion app: **SpeakForge**: https://aman1117.github.io/SpeakForge/ (phone or PC), or `start.ps1` on this PC.*
+*Companion app: **SpeakForge**. On your Mac Studio run `./setup_mac.sh` once, then `./start.sh` daily: speech recognition, analysis and the AI coach all run privately on your Mac. Browser version: https://aman1117.github.io/SpeakForge/*
+
+**Theo track:** the app's *Learn from Theo* screen turns the Theo analysis into practice: his measured numbers compared with yours after every speech, an accent lab for his four American-accent features (with real formant measurement on your Mac), his seven hook patterns and his most-used phrases.
 
 ---
 

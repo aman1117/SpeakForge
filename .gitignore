@@ -7,3 +7,6 @@ __pycache__/
 *.report.md
 tests/*.png
 
+.venv/
+*.log
+

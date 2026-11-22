@@ -1,8 +1,11 @@
 // Optional AI coach. Works with OpenAI, Azure OpenAI, or any OpenAI-compatible server (e.g. free local Ollama).
 import { extractJson } from './metrics.js';
 
+import { LOCAL } from './local.js';
+
 export const PROVIDERS = {
   none: 'Off',
+  local: 'This computer (Ollama through SpeakForge, fully private)',
   openai: 'OpenAI (api.openai.com)',
   azure: 'Azure OpenAI',
   ollama: 'Ollama / OpenAI-compatible (local or custom URL)',
@@ -10,6 +13,7 @@ export const PROVIDERS = {
 
 export function aiReady(cfg) {
   if (!cfg || !cfg.provider || cfg.provider === 'none') return false;
+  if (cfg.provider === 'local') return LOCAL.ok && LOCAL.ollama;
   if (cfg.provider === 'openai') return !!cfg.key;
   if (cfg.provider === 'azure') return !!(cfg.key && cfg.endpoint && cfg.deployment);
   return true;
@@ -17,6 +21,7 @@ export function aiReady(cfg) {
 
 export function requestFor(cfg, messages) {
   const body = { messages, temperature: 0.4 };
+  if (cfg.provider === 'local') return { url: 'api/chat', headers: { 'Content-Type': 'application/json' }, body: { ...body, model: cfg.model || '' } };
   if (cfg.provider === 'openai') {
     return { url: 'https://api.openai.com/v1/chat/completions', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${cfg.key}` }, body: { ...body, model: cfg.model || 'gpt-4o-mini' } };
   }
@@ -30,7 +35,7 @@ export function requestFor(cfg, messages) {
   return { url: `${base}/v1/chat/completions`, headers, body: { ...body, model: cfg.model || 'llama3.1' } };
 }
 
-export async function chat(cfg, messages, { timeoutMs = 60000 } = {}) {
+export async function chat(cfg, messages, { timeoutMs = cfg && cfg.provider === 'local' ? 300000 : 60000 } = {}) {
   const req = requestFor(cfg, messages);
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), timeoutMs);
