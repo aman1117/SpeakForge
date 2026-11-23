@@ -9,7 +9,7 @@ export function defaultState() {
     category: [], pen: [], zone: [], shadow: [], anxiety: [], volume: { baseline: null }, srs: {}, exposure: {},
     exposureLog: [], partner: [], deep: [], accent: [],
     explains: [], upgrades: [], awareness: [], exposures: [], prosody: [], reallife: [], better: [],
-    settings: { l1: 'Hindi', accent: 'american', bridgeMs: 1800, cue: true, camera: false, ritual: true, dailyMinutes: 35, engine: 'auto', liveFillers: true, planSec: 20, audience: 0 },
+    settings: { l1: 'Hindi', accent: 'american', bridgeMs: 1800, cue: true, camera: false, ritual: true, dailyMinutes: 35, engine: 'auto', liveFillers: true, planSec: 20, audience: 0, voice: 'af_heart' },
     ai: { provider: 'none', auto: true, model: '', endpoint: '', key: '', deployment: '', apiVersion: '2024-10-21' },
   };
 }

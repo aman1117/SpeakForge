@@ -11,3 +11,4 @@ tests/*.png
 *.log
 
 tests/.reallife_tmp/
+.venv-tts/

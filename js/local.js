@@ -21,11 +21,11 @@ export function retryDetect(onFound, tries = 6) {
 
 // Polls until the local speech engine has loaded its model, calling onChange after each check.
 export function waitUntilReady(onChange) {
-  if (!LOCAL.ok || LOCAL.ready) return;
+  if (!LOCAL.ok || (LOCAL.ready && !LOCAL.tts_loading)) return;
   const tick = async () => {
     try { const r = await fetch('api/status', { cache: 'no-store' }); if (r.ok) Object.assign(LOCAL, await r.json()); } catch { /* keep polling */ }
     onChange();
-    if (!LOCAL.ready) setTimeout(tick, 3000);
+    if (!LOCAL.ready || LOCAL.tts_loading) setTimeout(tick, 3000);
   };
   setTimeout(tick, 3000);
 }

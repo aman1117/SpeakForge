@@ -1,6 +1,6 @@
 import { S, save, logActivity, rememberText, $, esc, pick, mic, ensureMic, toast, sleep } from '../core.js';
 import { icon } from '../icons.js';
-import { Listener, speechSupported, say, loop, calibrate, cue } from '../audio.js';
+import { Listener, speechSupported, say, loop, calibrate, cue, setVoicePref } from '../audio.js';
 import { VoiceTracker, speechThreshold, countWords } from '../metrics.js';
 import { PROVIDERS, aiReady, chat, chatJson, partnerSystem, parsePartner, SCENARIOS, PARTNER_SCHEMA } from '../ai.js';
 import { RESCUE_PHRASES } from '../content.js';
@@ -31,6 +31,8 @@ export function render(main) {
         <label class="muted">Accent goal</label><br><select id="acc"><option value="american" ${st.accent === 'american' ? 'selected' : ''}>American (like Theo)</option><option value="neutral" ${st.accent === 'neutral' ? 'selected' : ''}>Clear neutral English</option></select><br><br>
         <label class="muted">Speech recognition</label><br><select id="eng"><option value="auto" ${(st.engine || 'auto') === 'auto' ? 'selected' : ''}>Automatic (on this computer when available)</option><option value="local" ${st.engine === 'local' ? 'selected' : ''} ${LOCAL.whisper ? '' : 'disabled'}>On this computer (Whisper)</option><option value="browser" ${st.engine === 'browser' ? 'selected' : ''}>Browser (sends audio to the browser’s speech service)</option></select>
         <p class="muted" style="margin-top:6px">${LOCAL.ok ? (LOCAL.whisper ? `Local engine found: ${esc(LOCAL.whisper)}.` : 'Local server found, but Whisper is not installed. Run setup_mac.sh.') : 'No local engine. Start SpeakForge with ./start.sh on your Mac for private, on-device speech.'}</p><br>
+        <label class="muted">Model voice (shadowing, questions, “hear it”)</label><br><div class="row"><select id="voice">${[['af_heart', 'Heart (US, female, most natural)'], ['af_bella', 'Bella (US, female)'], ['am_michael', 'Michael (US, male)'], ['am_fenrir', 'Fenrir (US, male)'], ['bf_emma', 'Emma (British, female)'], ['bm_george', 'George (British, male)'], ['system', 'macOS system voice']].map(([v, l]) => `<option value="${v}" ${(st.voice || 'af_heart') === v ? 'selected' : ''}>${l}</option>`).join('')}</select><button class="ghost small" id="vprev">Preview</button></div>
+        <p class="faint" style="margin-top:6px">${LOCAL.tts ? 'Natural voices run on this Mac (Kokoro).' : LOCAL.ok ? 'Natural voices need the voice engine: run ./setup_mac.sh once.' : 'Natural voices need ./start.sh; until then the macOS voice is used.'}</p><br>
         <label class="muted">Daily practice time</label><br><select id="mins">${[10, 20, 35, 60].map(m => `<option value="${m}" ${st.dailyMinutes === m ? 'selected' : ''}>${m} min</option>`).join('')}</select><br><br>
         <label><input type="checkbox" id="lf" ${st.liveFillers !== false ? 'checked' : ''}> Live filler cue (soft tone + “pause instead” when you say um)</label><br><br>
         <button id="savep">Save profile</button></div>
@@ -66,10 +68,12 @@ export function render(main) {
     save();
   };
   $('#savep').onclick = () => {
-    Object.assign(S.settings, { l1: $('#l1').value, accent: $('#acc').value, dailyMinutes: +$('#mins').value, engine: $('#eng').value, liveFillers: $('#lf').checked });
+    Object.assign(S.settings, { l1: $('#l1').value, accent: $('#acc').value, dailyMinutes: +$('#mins').value, engine: $('#eng').value, liveFillers: $('#lf').checked, voice: $('#voice').value });
+    setVoicePref(S.settings.voice);
     setListenMode(LOCAL.ok && LOCAL.whisper && S.settings.engine !== 'browser' ? 'local' : 'browser');
     save(); toast('Profile saved');
   };
+  $('#vprev').onclick = () => { setVoicePref($('#voice').value); say('Hi! I’m your model voice. Pause between ideas, and stress the word that matters.'); };
   $('#savea').onclick = () => { collect(); toast('AI settings saved'); render(main); };
   $('#test').onclick = async () => {
     collect();

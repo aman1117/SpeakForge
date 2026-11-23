@@ -31,6 +31,55 @@ PREFERRED_LLMS = [m for m in [os.environ.get('SPEAKFORGE_LLM')] if m] + ['gemma4
 MAX_BODY = 200 * 1024 * 1024
 MAX_RECORDING = 2 * 1024 * 1024 * 1024
 READY = threading.Event()
+TTS_PY = os.environ.get('SPEAKFORGE_TTS_PYTHON') or os.path.join(ROOT, '.venv-tts', 'bin', 'python')
+
+
+class TTS:
+    """Natural local voice (Kokoro) in a separate Python 3.10+ process; results cached by (text, voice, speed)."""
+    def __init__(self):
+        self.proc, self.ready, self.error, self.device = None, False, None, None
+        self.lock, self.cache, self.n = threading.Lock(), {}, 0
+
+    def available(self):
+        return os.path.exists(TTS_PY)
+
+    def start(self):
+        import subprocess
+        try:
+            self.proc = subprocess.Popen([TTS_PY, os.path.join(ROOT, 'tools', 'tts_worker.py')], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                         stderr=subprocess.DEVNULL, text=True, bufsize=1)
+            first = json.loads(self.proc.stdout.readline() or '{}')
+            self.ready, self.device = bool(first.get('ready')), first.get('device')
+            if not self.ready:
+                self.error = 'voice engine failed to start'
+        except Exception as e:
+            self.error = f'{type(e).__name__}: {e}'
+
+    def speak(self, text, voice, speed):
+        import base64
+        key = (text, voice, round(speed, 2))
+        if key in self.cache:
+            return self.cache[key]
+        with self.lock:
+            if not self.ready or self.proc.poll() is not None:
+                raise RuntimeError(self.error or 'voice engine not running')
+            self.n += 1
+            self.proc.stdin.write(json.dumps({'id': self.n, 'text': text, 'voice': voice, 'speed': speed}) + '\n')
+            self.proc.stdin.flush()
+            out = json.loads(self.proc.stdout.readline() or '{}')
+        if out.get('error') or not out.get('path'):
+            raise RuntimeError(out.get('error') or 'no audio')
+        with open(out['path'], 'rb') as f:
+            data = f.read()
+        os.unlink(out['path'])
+        res = {'audio': base64.b64encode(data).decode(), 'words': out.get('words', []), 'seconds': out.get('seconds')}
+        if len(self.cache) > 300:
+            self.cache.pop(next(iter(self.cache)))
+        self.cache[key] = res
+        return res
+
+
+VOICE = TTS()
 SPEAKER_ID = reallife.available()
 JOBS, JOBS_LOCK, ONE_AT_A_TIME = {}, threading.Lock(), threading.Semaphore(1)
 
@@ -131,6 +180,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 'whisper': engine.describe(), 'ready': READY.is_set(), 'platform': f'{platform.system()} {platform.machine()}',
                 'ollama': models is not None, 'models': models or [], 'model': pick_model(models or []),
                 'speaker_id': SPEAKER_ID, 'enrolled': reallife.voiceprint() is not None,
+                'tts': 'Kokoro' if VOICE.ready else None, 'tts_loading': VOICE.available() and not VOICE.ready and not VOICE.error,
             })
         if self.path.startswith('/api/enroll'):
             vp = reallife.voiceprint()
@@ -182,6 +232,12 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         try:
             if path == '/api/chat':
                 return self._chat()
+            if path == '/api/tts':
+                req = json.loads(self._body() or b'{}')
+                try:
+                    return self._json(200, VOICE.speak(str(req.get('text', ''))[:4000], req.get('voice') or 'af_heart', float(req.get('speed') or 1.0)))
+                except RuntimeError as e:
+                    return self._json(503, {'error': str(e)})
             if path == '/api/reallife':
                 return self._json(200, {'job': start_job(self._audio_file(MAX_RECORDING))})
             if path == '/api/enroll':
@@ -291,6 +347,9 @@ def main():
         threading.Thread(target=_warm, daemon=True).start()
     else:
         READY.set()
+    if VOICE.available():
+        threading.Thread(target=VOICE.start, daemon=True).start()
+        print('  natural voice: Kokoro (loading)')
     try:
         srv.serve_forever()
     except KeyboardInterrupt:

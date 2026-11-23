@@ -54,6 +54,7 @@ Every AI call uses a **JSON schema enforced by Ollama**, so the output can't bre
 | Live transcription, filler/restart detection, word timings | Whisper large-v3-turbo (MLX) | More accurate than any LLM at speech-to-text, and it keeps the "um"s |
 | Who is speaking in a meeting, which voice is yours | SpeechBrain ECAPA voiceprints | 98–99% of words attributed to the right speaker on real 4-person meetings |
 | Pitch, pauses, formants | Praat | The same method used to measure Theo |
+| Model voice for shadowing | Kokoro-82M | Natural rhythm and melody to copy; system voices sound robotic and you'd copy that |
 | Feedback, explanation rubric, word upgrades, real-life review, conversation partner | Gemma 4 26B via Ollama | Best quality for its speed on Apple Silicon |
 
 Options: `SPEAKFORGE_LLM=gemma4:31b` gives a little more quality and is slower. `gemma4:12b` is for 16 GB Macs. OpenAI or Azure can also be used from Settings.

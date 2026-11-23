@@ -1,5 +1,5 @@
 import { S, save, renderXp, $, esc, todayCount, lineChart, todayMinutesSpoken } from './core.js';
-import { stopAllAudio, setListenMode } from './audio.js';
+import { stopAllAudio, setListenMode, setVoicePref } from './audio.js';
 import { dayKey, weekNumber, skillScores, focusOfDay, SKILL_GROUPS, SKILL_LINKS } from './metrics.js';
 import { PHASES, WEEK_THEMES } from './content.js';
 import { icon, ringsSvg } from './icons.js';
@@ -167,6 +167,7 @@ if (!(window.SpeechRecognition || window.webkitSpeechRecognition)) {
 if (window.speechSynthesis) speechSynthesis.onvoiceschanged = () => {};
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
 renderXp();
+setVoicePref(S.settings.voice);
 renderEngine();
 route();
 detectLocal().then(() => {
@@ -181,6 +182,7 @@ detectLocal().then(() => {
 export function applyEngine() {
   const e = S.settings.engine || 'auto';
   setListenMode(LOCAL.ok && LOCAL.whisper && e !== 'browser' ? 'local' : 'browser');
+  setVoicePref(S.settings.voice);
   if (LOCAL.ok && LOCAL.ollama && S.ai.provider === 'none' && !S.ai.chosen) { S.ai.provider = 'local'; save(); }
   const w = document.getElementById('warn');
   if (LOCAL.ok && LOCAL.whisper && e !== 'browser') { w.classList.add('hidden'); }
@@ -190,6 +192,6 @@ function renderEngine() {
   const el = document.getElementById('engine');
   if (!el) return;
   el.innerHTML = LOCAL.ok
-    ? `<span class="dot"></span>Private mode: everything runs on this computer.<br>Speech: <b>${esc(LOCAL.whisper || 'browser')}</b>${LOCAL.whisper && !LOCAL.ready ? ' (loading…)' : ''}${LOCAL.ollama ? `<br>Coach: <b>${esc(LOCAL.model || 'Ollama')}</b>` : ''}`
+    ? `<span class="dot"></span>Private mode: everything runs on this computer.<br>Speech: <b>${esc(LOCAL.whisper || 'browser')}</b>${LOCAL.whisper && !LOCAL.ready ? ' (loading…)' : ''}${LOCAL.ollama ? `<br>Coach: <b>${esc(LOCAL.model || 'Ollama')}</b>` : ''}${LOCAL.tts ? '<br>Voice: <b>Kokoro</b>' : LOCAL.tts_loading ? '<br>Voice: loading…' : ''}`
     : '<span class="dot off"></span>Browser mode. Start ./start.sh to run everything privately on your computer.';
 }

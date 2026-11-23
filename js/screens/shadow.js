@@ -1,5 +1,5 @@
 import { S, save, logActivity, $, esc, ensureMic, sleep, toast } from '../core.js';
-import { Listener, speechSupported, say, hasNaturalVoice } from '../audio.js';
+import { Listener, speechSupported, say, hasNaturalVoice, naturalVoiceReady, stopSpeech } from '../audio.js';
 import { similarity, missedWords } from '../metrics.js';
 import { SHADOW_SCRIPTS as BASE_SCRIPTS } from '../content.js';
 import { CLASSIC_SPEECHES } from '../library.js';
@@ -16,7 +16,7 @@ export function render(main, params = {}) {
     <h1>Shadowing</h1>
     <p class="sub">Shadowing = speaking <b>at the same time</b> as a native speaker, copying their rhythm, stress, pitch and pauses. Research (Hamada et al.) shows gains in pronunciation and fluency. Mona did it 100 days in a row.</p>
     <div class="tabs"><button data-t="along">Speak along</button><button data-t="echo">Echo &amp; score</button><button data-t="own">Your own clips (Theo, Mona…)</button></div>
-    ${window.speechSynthesis && !hasNaturalVoice() ? '<div class="card flat" style="margin-bottom:18px"><p class="warnc" style="margin:0">The model voice sounds robotic, and you’ll copy that rhythm. On a Mac, install a natural voice once: System Settings → Accessibility → Spoken Content → System voice → Manage voices → English (US) → <b>Ava (Premium)</b> or <b>Zoe (Premium)</b>. SpeakForge picks it automatically. Better still: shadow real Theo or Mona clips in <i>Your own clips</i>.</p></div>' : ''}
+    ${!naturalVoiceReady() && window.speechSynthesis && !hasNaturalVoice() ? '<div class="card flat" style="margin-bottom:18px"><p class="warnc" style="margin:0">The model voice sounds robotic, and you’ll copy that rhythm. Start SpeakForge with <code>./start.sh</code> for the natural Kokoro voice, or install one in macOS: System Settings → Accessibility → Spoken Content → System voice → Manage voices → English (US) → <b>Ava (Premium)</b> or <b>Zoe (Premium)</b>. SpeakForge picks it automatically. Better still: shadow real Theo or Mona clips in <i>Your own clips</i>.</p></div>' : ''}
     <div id="pane"></div>`;
   main.querySelectorAll('.tabs button').forEach(b => {
     b.classList.toggle('on', b.dataset.t === tab);
@@ -67,7 +67,7 @@ function along(pane) {
       onEnd: () => spans.forEach(s => s.classList.remove('now')),
     });
   };
-  $('#stop').onclick = () => speechSynthesis.cancel();
+  $('#stop').onclick = () => stopSpeech();
   $('#done').onclick = () => { S.shadow.push({ ts: Date.now(), mode: 'along' }); save(); logActivity('shadow', 15); };
 }
 

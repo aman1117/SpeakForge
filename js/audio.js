@@ -1,11 +1,12 @@
 // Browser I/O: microphone level, recording, speech recognition, text-to-speech, recording storage.
+import { LOCAL } from './local.js';
 
 // Everything that keeps running in the background registers here so navigation can stop it.
 const ACTIVE = new Set();
 export function stopAllAudio() {
   for (const fn of [...ACTIVE]) { try { fn(); } catch { /* ignore */ } }
   ACTIVE.clear();
-  try { window.speechSynthesis?.cancel(); } catch { /* ignore */ }
+  stopSpeech();
 }
 
 export class Mic {
@@ -275,8 +276,47 @@ export function hasNaturalVoice() {
   const v = pickVoice();
   return !!v && /premium|enhanced|natural|neural|google/i.test(v.name);
 }
-export function say(text, { rate = 1, onBoundary, onEnd } = {}) {
-  if (!window.speechSynthesis) return;
+// Natural local voice (Kokoro through server.py) when available; macOS/browser voices otherwise.
+let VOICE_PREF = 'af_heart', current = null;
+export function setVoicePref(v) { VOICE_PREF = v || 'af_heart'; }
+export function naturalVoiceReady() { return LOCAL.ok && !!LOCAL.tts && VOICE_PREF !== 'system'; }
+
+export function stopSpeech() {
+  try { window.speechSynthesis?.cancel(); } catch { /* ignore */ }
+  if (current) { current.stop(); current = null; }
+}
+
+export function say(text, opts = {}) {
+  if (naturalVoiceReady()) {
+    sayNatural(text, opts).catch(() => { if (!opts._stopped?.()) saySystem(text, opts); });
+    return;
+  }
+  saySystem(text, opts);
+}
+
+async function sayNatural(text, { rate = 1, onBoundary, onEnd } = {}) {
+  stopSpeech();
+  let audio = null, iv = null;
+  const token = { stopped: false, stop() { this.stopped = true; clearInterval(iv); if (audio) { audio.pause(); audio.src = ''; } } };
+  current = token;
+  const r = await fetch('api/tts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, voice: VOICE_PREF, speed: rate }) });
+  if (token.stopped) return;
+  if (!r.ok) throw new Error(`tts ${r.status}`);
+  const j = await r.json();
+  if (token.stopped) return;
+  audio = new Audio('data:audio/wav;base64,' + j.audio);
+  let pos = 0;
+  const marks = (j.words || []).map(w => { const i = text.indexOf(w.w, pos); if (i >= 0) pos = i + w.w.length; return { s: w.s, charIndex: i >= 0 ? i : pos }; });
+  if (onBoundary) {
+    let k = 0;
+    iv = setInterval(() => { const t = audio.currentTime; while (k < marks.length && marks[k].s <= t) onBoundary({ charIndex: marks[k++].charIndex, name: 'word' }); }, 40);
+  }
+  audio.onended = () => { clearInterval(iv); if (current === token) current = null; onEnd?.(); };
+  await audio.play();
+}
+
+function saySystem(text, { rate = 1, onBoundary, onEnd } = {}) {
+  if (!window.speechSynthesis) { onEnd?.(); return; }
   speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(text);
   const v = pickVoice();

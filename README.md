@@ -7,7 +7,7 @@ Read [PLAN.md](PLAN.md) for the six-month plan, the research behind every featur
 ## Mac (Apple Silicon): fully private
 
 ```bash
-./setup_mac.sh        # once: Python env, MLX Whisper, Praat, SpeechBrain, Ollama + Gemma 4 (~20 GB of downloads)
+./setup_mac.sh        # once: Python env, MLX Whisper, Praat, SpeechBrain, Ollama + Gemma 4, Kokoro voice (~21 GB of downloads)
 ./start.sh            # every day: starts SpeakForge at http://localhost:8765 and opens it
 ./start.sh --reminder 20:00   # optional: open it every day at 20:00 with a notification
 ```
@@ -18,6 +18,7 @@ Read [PLAN.md](PLAN.md) for the six-month plan, the research behind every featur
 | Real-life recordings: who spoke when, which voice is yours | SpeechBrain ECAPA voiceprints | About 2.8 s of processing per audio minute; your voiceprint is stored in `~/.speakforge` |
 | Pitch, pause placement, formants | Praat (parselmouth) | The same method used to measure Theo |
 | AI coach: feedback, explanation rubric, word upgrades, real-life review, conversation partner | Ollama with **Gemma 4 26B** (`gemma4:26b`) | Schema-enforced JSON; `SPEAKFORGE_LLM=gemma4:12b` for 16 GB Macs |
+| Model voice for shadowing, questions and "hear it" | Kokoro-82M on the GPU (separate `.venv-tts`, Python 3.12) | Natural voice with word timings for highlighting; macOS voices as fallback |
 | Recordings and progress | Your browser (IndexedDB/localStorage) | Export a backup in Progress → Your data |
 
 Use Safari, Chrome or Edge. The sidebar shows "Private mode" when the local engine is running.
@@ -45,6 +46,7 @@ Use Safari, Chrome or Edge. The sidebar shows "Private mode" when the local engi
 npm test                                            # unit tests: analysis, scoring, thought-group alignment
 python3 tests/e2e.py                                # every flow in Chromium: fake mic/camera, scripted recogniser, mock AI
 python3 tests/e2e_real.py                           # Mac: Real life through the UI with real Whisper, voiceprint and Gemma
+python3 tests/e2e_voice.py                          # Mac: natural voice (Kokoro) through Shadowing, word timings, cache
 python3 tests/e2e_local.py                          # private mode: real server + Whisper + Praat + Ollama with spoken audio
 .venv/bin/python tests/test_reallife.py [--perf]    # speaker separation + voiceprint accuracy and the HTTP API
 python3 tests/webkit_check.py                       # Safari engine: every screen, fonts, storage
