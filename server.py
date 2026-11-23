@@ -26,6 +26,7 @@ import engine  # noqa: E402
 import reallife  # noqa: E402
 
 PORT = int(os.environ.get('SPEAKFORGE_PORT', '8765'))
+API_VERSION = 3  # bump when endpoints change; start.sh restarts an older running server
 OLLAMA = os.environ.get('OLLAMA_HOST_URL', 'http://127.0.0.1:11434').rstrip('/')
 PREFERRED_LLMS = [m for m in [os.environ.get('SPEAKFORGE_LLM')] if m] + ['gemma4:26b', 'gemma4:26b-mlx', 'gemma4:31b', 'gemma4:12b', 'gemma3:12b', 'gemma3:27b', 'qwen2.5:14b', 'llama3.1:8b', 'gemma3:4b', 'llama3.2:3b']
 MAX_BODY = 200 * 1024 * 1024
@@ -177,7 +178,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         if self.path.startswith('/api/status'):
             models = _models_cache['value']
             return self._json(200, {
-                'whisper': engine.describe(), 'ready': READY.is_set(), 'platform': f'{platform.system()} {platform.machine()}',
+                'version': API_VERSION, 'whisper': engine.describe(), 'ready': READY.is_set(), 'platform': f'{platform.system()} {platform.machine()}',
                 'ollama': models is not None, 'models': models or [], 'model': pick_model(models or []),
                 'speaker_id': SPEAKER_ID, 'enrolled': reallife.voiceprint() is not None,
                 'tts': 'Kokoro' if VOICE.ready else None, 'tts_loading': VOICE.available() and not VOICE.ready and not VOICE.error,

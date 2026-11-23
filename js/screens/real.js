@@ -59,6 +59,7 @@ function bindEnroll(main) {
     try {
       const r = await fetch('api/enroll', { method: 'POST', body: blob, headers: { 'Content-Type': blob.type || 'audio/webm' } });
       const j = await r.json();
+      if (r.status === 404) throw new Error('Your SpeakForge server is out of date. Close it and run ./start.sh again.');
       if (!r.ok || j.error) throw new Error(j.error || r.status);
       toast('Voiceprint saved');
       render(main);
@@ -76,6 +77,7 @@ async function upload(file) {
   try {
     const r = await fetch('api/reallife', { method: 'POST', body: file, headers: { 'Content-Type': file.type || 'application/octet-stream' } });
     const j = await r.json();
+    if (r.status === 404) throw new Error('Your SpeakForge server is out of date. Close it and run ./start.sh again.');
     if (!r.ok || j.error) throw new Error(j.error || r.status);
     const t0 = Date.now();
     for (;;) {

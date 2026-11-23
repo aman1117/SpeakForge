@@ -32,9 +32,16 @@ fi
 
 [ -f .venv/bin/activate ] && source .venv/bin/activate
 PORT="${SPEAKFORGE_PORT:-8765}"
-if curl -s "http://127.0.0.1:$PORT/api/status" >/dev/null 2>&1; then
-  open "http://localhost:$PORT/" 2>/dev/null || xdg-open "http://localhost:$PORT/" 2>/dev/null
-  echo "SpeakForge is already running at http://localhost:$PORT/"; exit 0
+WANT=$(grep -m1 '^API_VERSION' server.py | grep -oE '[0-9]+')
+RUNNING=$(curl -s "http://127.0.0.1:$PORT/api/status" 2>/dev/null)
+if [[ -n "$RUNNING" ]]; then
+  if [[ "$RUNNING" == *"\"version\": $WANT"* ]]; then
+    open "http://localhost:$PORT/" 2>/dev/null || xdg-open "http://localhost:$PORT/" 2>/dev/null
+    echo "SpeakForge is already running at http://localhost:$PORT/"; exit 0
+  fi
+  echo "An older SpeakForge server is running; restarting it with the new version…"
+  for PID in $(lsof -ti tcp:$PORT -sTCP:LISTEN); do kill "$PID"; done
+  sleep 2
 fi
 if ! curl -s http://127.0.0.1:11434/api/version >/dev/null 2>&1; then
   (open -a Ollama 2>/dev/null || (command -v ollama >/dev/null && nohup ollama serve >/dev/null 2>&1 &)) || true
